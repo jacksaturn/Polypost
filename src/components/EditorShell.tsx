@@ -26,7 +26,12 @@ const extensions = [
   Link.configure({
     autolink: true,
     defaultProtocol: 'https',
-    openOnClick: false,
+    openOnClick: true,
+    HTMLAttributes: {
+      target: '_blank',
+      rel: 'noopener noreferrer nofollow',
+      title: 'Click to open. Use the Link toolbar button to edit.',
+    },
   }),
   Placeholder.configure({
     placeholder: 'Paste or write your LinkedIn post draft...',

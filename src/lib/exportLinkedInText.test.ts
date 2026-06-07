@@ -118,10 +118,10 @@ describe('exportLinkedInText', () => {
       },
     ]);
 
-    expect(exportLinkedInText(document)).toBe('• Parent\n  • Child');
+    expect(exportLinkedInText(document)).toBe('• Parent\n      • Child');
   });
 
-  it('exports blockquotes and horizontal dividers as plain text', () => {
+  it('exports blockquotes as indented plain text and horizontal dividers without blank padding', () => {
     const document = doc([
       {
         type: 'blockquote',
@@ -131,7 +131,7 @@ describe('exportLinkedInText', () => {
       paragraph([text('After')]),
     ]);
 
-    expect(exportLinkedInText(document)).toBe('> Quoted\n>\n> Follow-up\n────────\nAfter');
+    expect(exportLinkedInText(document)).toBe('      Quoted\n\n      Follow-up\n────────\nAfter');
   });
 
   it('strips unsupported leaf nodes and keeps supported text around them', () => {

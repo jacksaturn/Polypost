@@ -64,7 +64,7 @@ export const SAMPLE_DOCUMENT: EditorNode = {
     },
     {
       type: 'blockquote',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Blockquotes show with the same > marker they export with.' }] }],
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Blockquotes export as indented plain text.' }] }],
     },
     {
       type: 'horizontalRule',

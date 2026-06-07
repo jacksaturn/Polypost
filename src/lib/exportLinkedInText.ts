@@ -2,6 +2,7 @@ import { LINKEDIN_POST_CHARACTER_LIMIT, getCharacterCountStatus } from './consta
 import { type UnicodeStyleOptions, styleText } from './unicodeStyles';
 
 const HORIZONTAL_RULE_TEXT = '────────';
+const INDENT_TEXT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
 export interface EditorMark {
   type?: string;
@@ -22,7 +23,7 @@ export function exportLinkedInText(document: EditorNode | null | undefined): str
   }
 
   const blocks = document.type === 'doc' ? document.content ?? [] : [document];
-  return renderBlocks(blocks).trim();
+  return trimPlainWhitespace(renderBlocks(blocks));
 }
 
 export function countLinkedInCharacters(text: string): number {
@@ -58,6 +59,10 @@ function renderBlocks(nodes: EditorNode[]): string {
     const separator = previous.node.type === 'horizontalRule' || block.node.type === 'horizontalRule' ? '\n' : '\n\n';
     return `${output}${separator}${block.text}`;
   }, '');
+}
+
+function trimPlainWhitespace(text: string): string {
+  return text.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '');
 }
 
 function renderBlock(node: EditorNode): string {
@@ -122,14 +127,14 @@ function renderTextNode(node: EditorNode): string {
 function renderBlockquote(node: EditorNode): string {
   return renderBlocks(node.content ?? [])
     .split('\n')
-    .map((line) => (line.trim() ? `> ${line}` : '>'))
+    .map((line) => (line.trim() ? `${INDENT_TEXT}${line}` : ''))
     .join('\n');
 }
 
 function renderList(node: EditorNode, kind: 'bullet' | 'ordered', depth = 0): string {
   let orderedIndex = getOrderedStart(node);
   const lines: string[] = [];
-  const indent = '  '.repeat(depth);
+  const indent = INDENT_TEXT.repeat(depth);
 
   for (const item of node.content ?? []) {
     if (item.type !== 'listItem') {

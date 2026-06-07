@@ -12,8 +12,8 @@ This is not an official LinkedIn app and does not post to LinkedIn directly. All
 
 - TipTap rich text editor with toolbar controls and keyboard shortcuts.
 - Sans-serif Unicode bold, italic, bold italic, code, experimental underline, and experimental strikethrough export.
-- Nested bullet and numbered lists with LinkedIn-friendly plain text indentation.
-- Blockquotes and horizontal dividers exported as plain text.
+- Nested bullet and numbered lists with LinkedIn-friendly non-breaking-space indentation.
+- Blockquotes exported as indented plain text, and horizontal dividers exported as plain divider lines.
 - Links export as readable label plus URL, for example `Read more (https://example.com)`.
 - Hashtags and mentions remain plain text so LinkedIn has the best chance to recognize them.
 - Emoji insertion toolbar with emoji-safe export behavior.
@@ -61,7 +61,7 @@ The character counter is based on the exported clipboard text and uses a 3,000-c
 
 ## MVP Scope
 
-Supported now: paragraphs, hard breaks, bold, italic, bold italic, underline, code, strikethrough, nested bullets, nested numbered lists, blockquotes, horizontal dividers, links, emoji, hashtags, mentions, local autosave, and copy.
+Supported now: paragraphs, hard breaks, bold, italic, bold italic, underline, code, strikethrough, nested bullets, nested numbered lists, indented blockquotes, horizontal dividers, links, emoji, hashtags, mentions, local autosave, and copy.
 
 Still deferred intentionally: real LinkedIn entity mentions, direct posting, analytics, and server-side storage. These require LinkedIn API access, user authentication, analytics consent/infrastructure, or a backend service, which are outside the current static client-only GitHub Pages app.
 
