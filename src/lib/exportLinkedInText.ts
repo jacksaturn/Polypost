@@ -1,4 +1,5 @@
 import { LINKEDIN_POST_CHARACTER_LIMIT, getCharacterCountStatus } from './constants';
+import { transformAroundMentionTokens } from './mentions';
 import { type UnicodeStyleOptions, styleText } from './unicodeStyles';
 
 const HORIZONTAL_RULE_TEXT = '────────';
@@ -124,7 +125,9 @@ function renderTextNode(node: EditorNode, inheritedMarks: EditorMark[] = []): st
   const text = node.text ?? '';
   const marks = [...inheritedMarks, ...(node.marks ?? [])];
   const href = getLinkHref(marks);
-  const styledText = styleText(text, getStyleOptions(marks));
+  // Mention tokens stay unstyled: their text feeds LinkedIn's typeahead
+  // lookup, and LinkedIn renders mentions without styling anyway.
+  const styledText = transformAroundMentionTokens(text, (chunk) => styleText(chunk, getStyleOptions(marks)));
 
   if (!href) {
     return styledText;

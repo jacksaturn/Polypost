@@ -20,7 +20,8 @@ This is not an official LinkedIn app. Drafts stay in your browser; the extension
 - Nested bullet and numbered lists with LinkedIn-friendly non-breaking-space indentation.
 - Blockquotes exported as indented plain text, and horizontal dividers exported as plain divider lines.
 - Links export as readable label plus URL, for example `Read more (https://example.com)`.
-- Hashtags and mentions remain plain text so LinkedIn has the best chance to recognize them.
+- Hashtags remain plain text so LinkedIn has the best chance to recognize them.
+- Mentions: write `@[Name]` to tag people; posting through the extension resolves tokens into real LinkedIn mentions (see [Mentions](#mentions)).
 - Searchable emoji picker with emoji-safe export behavior.
 - Pasted Markdown converts to formatted draft text for common inline marks, links, headings, fenced code, lists, blockquotes, and dividers.
 - Pasted Word/Office HTML is cleaned into editor-friendly content while preserving common inline styling where possible.
@@ -65,8 +66,17 @@ The extension turns the LinkedIn composer into the formatter. Clicking **Start a
 
 - A content script (`src/extension/content-script.tsx`) runs on `linkedin.com`, mounts the formatter UI, and listens for clicks on LinkedIn's **Start a post** control.
 - LinkedIn renders its composer inside a **shadow root**, so the script pierces shadow boundaries to find the composer, suppress it (CSS `visibility:hidden` while you edit, so its focus trap cannot steal focus from the formatter), and drive it.
-- On **Post**, the script briefly makes the hidden composer focusable, hands any attached images/videos to LinkedIn's media upload input (confirming the media editor's **Next** step), inserts the exported text, waits for LinkedIn's Post button to enable, clicks it, and confirms the composer closed.
+- On **Post**, the script briefly makes the hidden composer focusable, hands any attached images/videos to LinkedIn's media upload input (confirming the media editor's **Next** step), inserts the exported text (resolving `@[Name]` mention tokens through the composer's mention typeahead), waits for LinkedIn's Post button to enable, clicks it, and confirms the composer closed.
 - A service worker (`src/extension/public/background.js`) re-injects the script if you click the toolbar icon on a LinkedIn tab.
+
+### Mentions
+
+Write `@[Name]` in the draft — for example `@[Scott Hanselman]` — to mention someone. The editor shows the token as plain text; the preview and character count show it flattened as `@Name`.
+
+- **Posting through the extension** resolves each token into a real mention: the bridge types `@name` into LinkedIn's hidden composer one character at a time, waits for LinkedIn's mention typeahead, and clicks the entry whose name matches exactly (case-insensitive). LinkedIn ranks your closest connection first when several people share a name. The published post shows a clickable mention rendered as the person's name (LinkedIn drops the `@` and brackets), and they receive the usual mention notification. Each mention adds a couple of seconds to posting while the typeahead resolves.
+- **If nothing matches exactly** (a typo, or someone LinkedIn's typeahead will not surface), the token degrades to plain `@name` text in the post. A near-match is never clicked, so the wrong person cannot be mentioned.
+- **Copy for LinkedIn and the web app** always flatten tokens to plain `@Name` text. Pasted text can never become a real mention — LinkedIn only creates mention entities through its own typeahead — so after pasting, retype `@Name` in LinkedIn's composer and pick from the dropdown to mention manually.
+- Mention tokens stay unstyled inside bold or italic text, both because styled (Unicode) names would never match the typeahead and because LinkedIn renders mentions unstyled anyway.
 
 ### Permissions
 

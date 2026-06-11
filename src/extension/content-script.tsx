@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { LinkedInComposerOverlay } from './LinkedInComposerOverlay';
+import { parseMentionSegments, type MentionSegment } from '../lib/mentions';
 import {
   attachFilesToLinkedInComposer,
   clickLinkedInControl,
@@ -19,6 +20,7 @@ import {
   NATIVE_HIDDEN_CLASS_NAME,
   openNativeLinkedInComposer,
   queryAllDeep,
+  setLinkedInComposerSegments,
   setLinkedInComposerText,
 } from './linkedinComposer';
 import './extension.css';
@@ -226,8 +228,9 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
     }
 
     if (text.trim()) {
-      let wrote = setLinkedInComposerText(composer, text);
-      log('setLinkedInComposerText result:', wrote);
+      const segments = parseMentionSegments(text);
+      let wrote = await writeComposerContent(composer, text, segments);
+      log('write composer content result:', wrote);
 
       if (wrote && files.length > 0) {
         // Late media re-renders can wipe freshly inserted text; verify it
@@ -235,11 +238,11 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
         await wait(800);
         const current = findLinkedInComposer() ?? composer;
 
-        if (!composerContainsText(current, text)) {
+        if (!composerContainsContent(current, segments)) {
           log('text wiped by media re-render, re-inserting');
           composer = current;
-          wrote = setLinkedInComposerText(composer, text);
-          log('setLinkedInComposerText retry result:', wrote);
+          wrote = await writeComposerContent(composer, text, segments);
+          log('write composer content retry result:', wrote);
         }
       }
 
@@ -342,8 +345,31 @@ async function waitForMediaAttached(): Promise<boolean> {
   return Boolean(findLinkedInMediaAttachedIndicator());
 }
 
-function composerContainsText(composer: HTMLElement, text: string): boolean {
-  const probe = text.trim().slice(0, 40);
+// Plain text inserts in one shot; text with mention tokens goes through the
+// segment writer, which resolves each token via LinkedIn's mention typeahead.
+// Unresolved mentions degrade to plain "@name" text inside the post.
+async function writeComposerContent(composer: HTMLElement, text: string, segments: MentionSegment[]): Promise<boolean> {
+  if (!segments.some((segment) => segment.kind === 'mention')) {
+    return setLinkedInComposerText(composer, text);
+  }
+
+  const result = await setLinkedInComposerSegments(composer, segments);
+  log('mentions resolved:', result.mentionsApplied, 'of', result.mentionsRequested);
+  return result.inserted;
+}
+
+function composerContainsContent(composer: HTMLElement, segments: MentionSegment[]): boolean {
+  // Probe with the first text segment: mention tokens are rewritten by
+  // LinkedIn into display names, so their exact text cannot be asserted.
+  const firstText = segments.find((segment): segment is MentionSegment & { kind: 'text' } => {
+    return segment.kind === 'text' && segment.text.trim().length > 0;
+  });
+  const probe = firstText?.text.trim().slice(0, 40);
+
+  if (!probe) {
+    return (composer.textContent ?? '').trim().length > 0;
+  }
+
   return (composer.textContent ?? '').includes(probe);
 }
 

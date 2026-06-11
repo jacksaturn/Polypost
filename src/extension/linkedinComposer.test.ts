@@ -4,13 +4,16 @@ import {
   attachFilesToLinkedInComposer,
   closeNativeLinkedInComposer,
   dismissNativeComposerDiscardConfirmation,
+  findComposerMentionEntity,
   findLinkedInComposer,
   findLinkedInMediaAttachedIndicator,
   findLinkedInMediaFileInput,
   findLinkedInMediaNextButton,
   findLinkedInPostButton,
+  findMentionTypeaheadOption,
   findNativeComposerDialog,
   getLinkedInComposerAnchor,
+  setLinkedInComposerSegments,
   setLinkedInComposerText,
 } from './linkedinComposer';
 
@@ -127,6 +130,80 @@ describe('linkedinComposer helpers', () => {
 
     expect(nativeHandler).toHaveBeenCalledTimes(1);
     expect(formatterHandler).not.toHaveBeenCalled();
+  });
+
+  it('clicks discard confirmations rendered with role="alertdialog"', () => {
+    // LinkedIn's "Discard draft" prompt uses alertdialog, not dialog.
+    document.body.innerHTML = `
+      <div role="alertdialog">
+        <p>Discard draft</p>
+        <button type="button">Go back</button>
+        <button type="button">Discard</button>
+      </div>
+    `;
+    const discardButton = document.querySelectorAll<HTMLButtonElement>('button')[1];
+    const discardHandler = vi.fn();
+    discardButton.addEventListener('click', discardHandler);
+
+    expect(dismissNativeComposerDiscardConfirmation()).toBe(true);
+
+    expect(discardHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it('finds the typeahead option whose hit text matches the mention name', () => {
+    document.body.innerHTML = `
+      <div class="editor-typeahead__typeahead-tray" role="listbox">
+        <div role="option"><span class="search-typeahead-v2__hit-text">Scott Hansen</span></div>
+        <div role="option"><span class="search-typeahead-v2__hit-text"> Scott  Hanselman </span></div>
+      </div>
+    `;
+    const options = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]'));
+    options.forEach(mockVisible);
+
+    expect(findMentionTypeaheadOption('scott hanselman')).toBe(options[1]);
+    expect(findMentionTypeaheadOption('jane doe')).toBeNull();
+  });
+
+  it('ignores typeahead options inside the extension root or outside a typeahead surface', () => {
+    document.body.innerHTML = `
+      <div id="linkedin-post-formatter-extension-root">
+        <div class="editor-typeahead__typeahead-tray">
+          <div role="option"><span class="search-typeahead-v2__hit-text">Scott Hanselman</span></div>
+        </div>
+      </div>
+      <ul><li role="option">Scott Hanselman</li></ul>
+    `;
+    document.querySelectorAll<HTMLElement>('[role="option"]').forEach(mockVisible);
+
+    expect(findMentionTypeaheadOption('scott hanselman')).toBeNull();
+  });
+
+  it('finds the mention entity LinkedIn inserts into the composer', () => {
+    document.body.innerHTML = `
+      <div contenteditable="true">
+        <p>Hello <a class="ql-mention" href="#" data-entity-urn="urn:li:fsd_profile:abc">Scott Hanselman</a>!</p>
+      </div>
+    `;
+    const composer = document.querySelector<HTMLElement>('[contenteditable="true"]')!;
+
+    expect(findComposerMentionEntity(composer, 'Scott Hanselman')).toBe(composer.querySelector('a'));
+    expect(findComposerMentionEntity(composer, 'Jane Doe')).toBeNull();
+  });
+
+  it('inserts text segments and reports mentions that could not resolve', async () => {
+    // jsdom has no execCommand, so the text path uses the fallback and the
+    // mention typeahead path reports failure instead of applying.
+    document.body.innerHTML = '<div contenteditable="true"></div>';
+    const editor = document.querySelector<HTMLElement>('[contenteditable="true"]')!;
+
+    const result = await setLinkedInComposerSegments(editor, [
+      { kind: 'text', text: 'Hello ' },
+      { kind: 'mention', name: 'Scott Hanselman' },
+      { kind: 'text', text: '!' },
+    ]);
+
+    expect(result).toEqual({ inserted: true, mentionsRequested: 1, mentionsApplied: 0 });
+    expect(editor.textContent).toBe('Hello !');
   });
 
   it('clicks LinkedIn discard confirmations after closing a draft composer', () => {

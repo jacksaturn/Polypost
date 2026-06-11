@@ -77,6 +77,14 @@ describe('exportLinkedInText', () => {
     expect(exportLinkedInText(document)).toBe(`${styleText('Ship it ', { bold: true })}#LinkedIn @Ada`);
   });
 
+  it('keeps mention tokens intact and unstyled inside styled text', () => {
+    const document = doc([paragraph([text('Thanks @[Scott Hanselman] again', [{ type: 'bold' }])])]);
+
+    expect(exportLinkedInText(document)).toBe(
+      `${styleText('Thanks ', { bold: true })}@[Scott Hanselman]${styleText(' again', { bold: true })}`,
+    );
+  });
+
   it('preserves emoji in exported text and styled ranges', () => {
     const document = doc([paragraph([text('Launch 🚀', [{ type: 'bold' }, { type: 'underline' }]), text(' ✅')])]);
 

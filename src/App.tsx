@@ -9,6 +9,7 @@ import { LinkedInPreview } from './components/LinkedInPreview';
 import { copyPlainText } from './lib/clipboard';
 import { exportLinkedInText, getLinkedInCharacterSummary, type EditorNode } from './lib/exportLinkedInText';
 import type { FeedPreviewMode } from './lib/feedPreview';
+import { flattenMentionTokens } from './lib/mentions';
 import { SAMPLE_DOCUMENT } from './lib/sampleContent';
 import { clearDraft, deleteDraftSnapshot, loadDraft, loadDraftHistory, saveDraft, saveDraftSnapshot, type DraftSnapshot } from './lib/storage';
 
@@ -24,7 +25,9 @@ function App() {
   const [storageNotice, setStorageNotice] = useState<string | null>(() => initialLoad.error ?? null);
   const [copyStatus, setCopyStatus] = useState<CopyStatus>({ state: 'idle', message: '' });
 
-  const exportedText = exportLinkedInText(document);
+  // The web app only copies (never posts), so @[Name] mention tokens always
+  // flatten to plain "@Name" text here.
+  const exportedText = flattenMentionTokens(exportLinkedInText(document));
   const characterSummary = getLinkedInCharacterSummary(exportedText);
 
   function handleDocumentChange(nextDocument: EditorNode) {

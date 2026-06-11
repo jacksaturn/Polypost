@@ -1,3 +1,5 @@
+import type { MentionSegment } from '../lib/mentions';
+
 const COMPOSER_SELECTORS = [
   'div[role="dialog"] .ql-editor[contenteditable="true"]',
   'div[role="dialog"] [contenteditable="true"][aria-label]',
@@ -7,6 +9,9 @@ const COMPOSER_SELECTORS = [
   '[contenteditable="true"]',
 ];
 const EXTENSION_ROOT_SELECTOR = '#linkedin-post-formatter-extension-root';
+// LinkedIn renders confirmation prompts (e.g. "Discard draft") with
+// role="alertdialog", so dialog lookups must cover both roles.
+const DIALOG_SELECTOR = '[role="dialog"], [role="alertdialog"]';
 
 export const NATIVE_HIDDEN_CLASS_NAME = 'lipf-native-composer-hidden';
 
@@ -130,7 +135,7 @@ export function dismissNativeComposerDiscardConfirmation(root: ParentNode = docu
     return false;
   }
 
-  hideDialogSurface(discardControl.closest<HTMLElement>('[role="dialog"]'));
+  hideDialogSurface(discardControl.closest<HTMLElement>(DIALOG_SELECTOR));
   clickControl(discardControl);
   return true;
 }
@@ -316,6 +321,204 @@ function createDragEvent(type: string, transfer: DataTransfer): Event {
   return event;
 }
 
+// LinkedIn's mention typeahead: typing "@name" into the composer one character
+// at a time (so Quill's mention module sees each edit) opens a tray of
+// role="option" profile hits. Clicking a hit makes LinkedIn insert a real
+// mention entity bound to the profile — the only way to create one, since
+// pasted text or HTML never becomes a mention.
+const MENTION_TYPEAHEAD_OPTION_SELECTOR = '[role="option"]';
+const MENTION_TYPEAHEAD_HIT_NAME_SELECTOR = '.search-typeahead-v2__hit-text';
+const MENTION_TYPING_DELAY_MS = 40;
+const MENTION_TYPEAHEAD_TIMEOUT_MS = 5000;
+const MENTION_ENTITY_TIMEOUT_MS = 3000;
+
+export type ComposerSegment = MentionSegment;
+
+export interface ComposerSegmentsResult {
+  inserted: boolean;
+  mentionsRequested: number;
+  mentionsApplied: number;
+}
+
+function normalizeMentionName(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export function findMentionTypeaheadOption(name: string, root: ParentNode = document): HTMLElement | null {
+  const target = normalizeMentionName(name);
+
+  if (!target) {
+    return null;
+  }
+
+  const options = queryAllDeep<HTMLElement>(MENTION_TYPEAHEAD_OPTION_SELECTOR, root).filter((option) => {
+    if (option.closest(EXTENSION_ROOT_SELECTOR) || !option.closest('[class*="typeahead"]')) {
+      return false;
+    }
+
+    const rect = option.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+
+  const optionName = (option: HTMLElement) => {
+    const hit = option.querySelector<HTMLElement>(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR);
+    return normalizeMentionName(hit?.textContent ?? '');
+  };
+
+  // Only an exact (case/whitespace-insensitive) name match is clicked: a wrong
+  // mention is worse than the name degrading to plain text.
+  return options.find((option) => optionName(option) === target)
+    ?? options.find((option) => !option.querySelector(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR)
+      && normalizeMentionName(option.textContent ?? '').startsWith(target))
+    ?? null;
+}
+
+// Finds the mention entity LinkedIn inserted for the given display name.
+export function findComposerMentionEntity(composer: HTMLElement, name: string): HTMLElement | null {
+  const target = normalizeMentionName(name);
+  const candidates = Array.from(
+    composer.querySelectorAll<HTMLElement>('a, [data-test-ql-mention], [class*="mention"], [data-entity-urn], [data-urn]'),
+  );
+
+  return candidates.find((candidate) => normalizeMentionName(candidate.textContent ?? '') === target) ?? null;
+}
+
+// Types "@name" into the composer character by character, waits for LinkedIn's
+// typeahead to offer an exact name match, clicks it, and confirms the mention
+// entity landed in the editor. The caret must already sit where the mention
+// belongs (after whitespace or at the start, or LinkedIn won't trigger the
+// typeahead). On failure the typed name remains as plain text.
+export async function typeMentionIntoLinkedInComposer(composer: HTMLElement, name: string): Promise<boolean> {
+  if (!composer.isConnected || composer.getAttribute('contenteditable') !== 'true') {
+    return false;
+  }
+
+  for (const char of `@${name}`) {
+    if (!typeCharacterIntoComposer(composer, char)) {
+      return false;
+    }
+
+    await waitMilliseconds(MENTION_TYPING_DELAY_MS);
+  }
+
+  const option = await waitForCondition(() => findMentionTypeaheadOption(name), MENTION_TYPEAHEAD_TIMEOUT_MS);
+
+  if (!option) {
+    // Close the typeahead tray so it does not swallow later keystrokes.
+    composer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    return false;
+  }
+
+  const displayName = option.querySelector<HTMLElement>(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR)?.textContent ?? name;
+  clickControl(option);
+
+  const entity = await waitForCondition(() => findComposerMentionEntity(composer, displayName), MENTION_ENTITY_TIMEOUT_MS);
+  return Boolean(entity);
+}
+
+// Replaces the composer content with a sequence of text and mention segments.
+// Mentions resolve through LinkedIn's typeahead; ones that fail to resolve stay
+// as plain "@name" text and are reported via the counts in the result.
+export async function setLinkedInComposerSegments(
+  composer: HTMLElement,
+  segments: ComposerSegment[],
+): Promise<ComposerSegmentsResult> {
+  const result: ComposerSegmentsResult = { inserted: false, mentionsRequested: 0, mentionsApplied: 0 };
+
+  if (!composer.isConnected || composer.getAttribute('contenteditable') !== 'true') {
+    return result;
+  }
+
+  composer.focus();
+  selectComposerContents(composer);
+
+  if (typeof document.execCommand === 'function') {
+    document.execCommand('delete', false);
+  } else {
+    composer.textContent = '';
+  }
+
+  result.inserted = true;
+
+  for (const segment of segments) {
+    if (segment.kind === 'mention') {
+      result.mentionsRequested += 1;
+
+      if (await typeMentionIntoLinkedInComposer(composer, segment.name)) {
+        result.mentionsApplied += 1;
+      }
+
+      continue;
+    }
+
+    if (segment.text) {
+      insertTextAtComposerCaret(composer, segment.text);
+    }
+  }
+
+  composer.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, composed: true }));
+  composer.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+  return result;
+}
+
+function typeCharacterIntoComposer(composer: HTMLElement, char: string): boolean {
+  composer.dispatchEvent(createInputEvent(char, 'beforeinput'));
+
+  if (typeof document.execCommand !== 'function' || !document.execCommand('insertText', false, char)) {
+    return false;
+  }
+
+  composer.dispatchEvent(createInputEvent(char, 'input'));
+  return true;
+}
+
+function insertTextAtComposerCaret(composer: HTMLElement, text: string) {
+  composer.dispatchEvent(createInputEvent(text, 'beforeinput'));
+
+  if (typeof document.execCommand !== 'function' || !document.execCommand('insertText', false, text)) {
+    // jsdom path: append and park the caret at the end.
+    composer.append(document.createTextNode(text));
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(composer);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  composer.dispatchEvent(createInputEvent(text, 'input'));
+}
+
+function waitMilliseconds(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function waitForCondition<T>(finder: () => T | null, timeoutMs: number): Promise<T | null> {
+  const found = finder();
+
+  if (found) {
+    return Promise.resolve(found);
+  }
+
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const interval = window.setInterval(() => {
+      const current = finder();
+
+      if (current) {
+        window.clearInterval(interval);
+        resolve(current);
+        return;
+      }
+
+      if (Date.now() - startedAt >= timeoutMs) {
+        window.clearInterval(interval);
+        resolve(null);
+      }
+    }, 100);
+  });
+}
+
 export function setLinkedInComposerText(composer: HTMLElement, text: string): boolean {
   if (!composer.isConnected || composer.getAttribute('contenteditable') !== 'true') {
     return false;
@@ -363,9 +566,9 @@ function isUsableComposer(composer: HTMLElement): boolean {
 }
 
 function getDialogs(root: ParentNode): HTMLElement[] {
-  const dialogs = queryAllDeep<HTMLElement>('[role="dialog"]', root);
+  const dialogs = queryAllDeep<HTMLElement>(DIALOG_SELECTOR, root);
 
-  if (root instanceof HTMLElement && root.matches('[role="dialog"]')) {
+  if (root instanceof HTMLElement && root.matches(DIALOG_SELECTOR)) {
     dialogs.unshift(root);
   }
 

@@ -8,6 +8,7 @@ import { HelpPanel } from '../components/HelpPanel';
 import { LinkedInPreview } from '../components/LinkedInPreview';
 import { copyPlainText } from '../lib/clipboard';
 import { exportLinkedInText, getLinkedInCharacterSummary, type EditorNode } from '../lib/exportLinkedInText';
+import { flattenMentionTokens } from '../lib/mentions';
 import type { FeedPreviewMode } from '../lib/feedPreview';
 import {
   clearDraft,
@@ -57,7 +58,10 @@ export function LinkedInComposerOverlay({ open, onClose, onPost }: LinkedInCompo
   const [attachments, setAttachments] = useState<File[]>([]);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const exportedText = exportLinkedInText(editorDocument);
-  const summary = getLinkedInCharacterSummary(exportedText);
+  // Posting keeps @[Name] mention tokens for typeahead resolution; copy,
+  // preview, and counts use the flattened plain-text form.
+  const flattenedText = flattenMentionTokens(exportedText);
+  const summary = getLinkedInCharacterSummary(flattenedText);
 
   const attachmentPreviews = useMemo(() => {
     return attachments.map((file) => (isImageFile(file) ? URL.createObjectURL(file) : null));
@@ -124,7 +128,7 @@ export function LinkedInComposerOverlay({ open, onClose, onPost }: LinkedInCompo
 
   async function handleCopy() {
     try {
-      await copyPlainText(exportedText);
+      await copyPlainText(flattenedText);
       setCopyStatus({ state: 'idle', message: '' });
       setStatus('copied');
       setStatusMessage('Copied');
@@ -268,7 +272,7 @@ export function LinkedInComposerOverlay({ open, onClose, onPost }: LinkedInCompo
           <LinkedInPreview summary={summary} />
           <EditorShell
             key={editorVersion}
-            exportedText={exportedText}
+            exportedText={flattenedText}
             feedPreviewMode={feedPreviewMode}
             initialContent={editorDocument}
             showFeedCutoff={showFeedCutoff}
