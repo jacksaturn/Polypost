@@ -1,34 +1,39 @@
-# LinkedIn Post Formatter
+# OmniPost
 
-Draft LinkedIn posts with familiar rich-text controls, then publish through LinkedIn's own composer in one click. The editor uses TipTap for word-processor-style editing and exports bold, italic, code, lists, and links as LinkedIn-ready Unicode plain text.
+Draft a post once and see it formatted for every platform at the same time. The main editor uses TipTap for word-processor-style editing; a live preview rail shows what your post looks like on **LinkedIn, X, Bluesky, Threads, Facebook, and Instagram**, each with its own character limit, counting rule, and formatting limits applied. Edit inside any preview to tailor that platform's version, then copy it (or open that platform's composer) in one click.
 
 It ships in two forms:
 
-- **Web app** — a standalone formatter you copy text out of and paste into LinkedIn. Live at https://markrussinovich.github.io/LinkedIn-Formatter/
-- **Browser extension** — runs on LinkedIn itself. Clicking **Start a post** opens the formatter *as* the composer; its **Post** button writes the formatted text into LinkedIn's native composer and submits through LinkedIn's own Post flow. See [Browser Extension](#browser-extension).
+- **Web app** — the multi-platform editor. Live at https://markrussinovich.github.io/LinkedIn-Formatter/
+- **Browser extension** — runs on LinkedIn itself. Clicking **Start a post** opens the formatter *as* the composer; its **Post** button writes the formatted text into LinkedIn's native composer and submits through LinkedIn's own Post flow. The extension remains LinkedIn-specific. See [Browser Extension](#browser-extension).
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="LinkedIn Post Formatter screenshot" width="640">
+  <img src="docs/screenshot.png" alt="OmniPost screenshot" width="640">
 </p>
 
-This is not an official LinkedIn app. Drafts stay in your browser; the extension only acts on LinkedIn when you click Post.
+This is not an official app of any platform. Drafts stay in your browser; the extension only acts on LinkedIn when you click Post.
 
 ## Features
 
+- **Multi-platform live previews.** Toggle platforms on/off with chips; enabled platforms appear as feed-style cards in the right-hand rail and update as you type.
+- **Per-platform rules.** LinkedIn (3,000 chars, styled Unicode), X (280, weighted counting — URLs count as 23, an estimate), Bluesky (300, grapheme-cluster counting), Threads (500), Facebook (long-form with a "See more" cutoff), Instagram (2,200, with a warning that captions don't render clickable links).
+- **Fork-on-edit.** Each preview mirrors the main draft until you edit it; the first edit "forks" that platform into a customized version (Customized badge) with a one-click re-sync back to the main draft. Hiding a customized platform keeps its customization dormant until you re-enable it.
+- **Copy per platform.** Every card has Copy (platform-ready text) and, where supported, Copy & open — which copies and opens that platform's composer pre-filled (X, Bluesky, Threads).
+- **Optional AI assist.** Connect an LLM endpoint (Anthropic Claude, or any OpenAI-compatible endpoint that allows browser/CORS calls) via the gear icon. The AI can write or improve the main draft, rewrite a single platform on demand ("Adapt with AI"), and — with auto-fit enabled — automatically rewrite any over-limit platform to fit, ~3 seconds after you stop typing. AI-fitted cards show an **AI** badge and can be re-synced to the master; manual edits always take precedence over AI versions. The API key is stored only in your browser, and calls go directly from the browser to your endpoint.
 - TipTap rich text editor with toolbar controls and keyboard shortcuts.
-- Sans-serif Unicode bold, italic, bold italic, code, experimental underline, and experimental strikethrough export.
-- Nested bullet and numbered lists with LinkedIn-friendly non-breaking-space indentation.
+- Sans-serif Unicode bold, italic, bold italic, code, experimental underline, and experimental strikethrough export (LinkedIn); plain text for platforms where styled Unicode hurts reach/accessibility.
+- Nested bullet and numbered lists with non-breaking-space indentation.
 - Blockquotes exported as indented plain text, and horizontal dividers exported as plain divider lines.
-- Links export as readable label plus URL, for example `Read more (https://example.com)`. When posting through the extension, LinkedIn unfurls the first URL into its usual link preview card (an inline player for YouTube and other video links); the bridge waits briefly for the card to attach before clicking Post. Attached media suppresses link previews, matching LinkedIn's own behavior.
-- Hashtags remain plain text so LinkedIn has the best chance to recognize them.
-- Mentions: write `@[Name]` to tag people; posting through the extension resolves tokens into real LinkedIn mentions (see [Mentions](#mentions)).
+- Links export as readable label plus URL, for example `Read more (https://example.com)`.
+- Hashtags remain plain text so platforms have the best chance to recognize them.
+- Mentions: write `@[Name]` to tag people; copying flattens to plain `@Name`, and posting through the LinkedIn extension resolves tokens into real LinkedIn mentions (see [Mentions](#mentions)).
 - Searchable emoji picker with emoji-safe export behavior.
 - Pasted Markdown converts to formatted draft text for common inline marks, links, headings, fenced code, lists, blockquotes, and dividers.
 - Pasted Word/Office HTML is cleaned into editor-friendly content while preserving common inline styling where possible.
 - Upload or drag `.txt`, `.md`, `.markdown`, or `.docx` files into the draft editor.
-- Live character counter plus desktop/mobile LinkedIn-style feed preview with an estimated "more" cutoff toggle.
+- A LinkedIn-style desktop/mobile feed preview of the main draft with an estimated "more" cutoff toggle.
 - One-click copy with a fallback for browsers that block the Clipboard API.
-- Local draft autosave, reset/recovery behavior, and saved drafts.
+- Local draft autosave (including per-platform customizations and enabled platforms), reset/recovery behavior, and saved drafts.
 - Extension: one-click publish through LinkedIn's native composer, with the native composer kept hidden so the formatter feels like the real post box.
 - Extension: attach images (up to 20) or a single video; media is handed to LinkedIn's own upload flow when you click Post.
 - GitHub Actions workflow for GitHub Pages deployment.

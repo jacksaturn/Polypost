@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -21,6 +22,7 @@ import type { LucideIcon } from 'lucide-react';
 
 import { getAcceptedDocumentTypes } from '../lib/importDocument';
 import { EmojiPicker } from './EmojiPicker';
+import { PromptDialog } from './PromptDialog';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -38,6 +40,9 @@ interface ToolButtonProps {
 }
 
 export function Toolbar({ editor, onImportFile, onReset }: ToolbarProps) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkInitial, setLinkInitial] = useState('https://');
+
   function run(command: () => boolean) {
     if (!editor) {
       return;
@@ -46,15 +51,20 @@ export function Toolbar({ editor, onImportFile, onReset }: ToolbarProps) {
     command();
   }
 
-  function toggleLink() {
+  function openLinkDialog() {
     if (!editor) {
       return;
     }
 
     const existingHref = editor.getAttributes('link').href as string | undefined;
-    const value = window.prompt('Paste a URL for the selected text. Leave empty to remove the link.', existingHref ?? 'https://');
+    setLinkInitial(existingHref ?? 'https://');
+    setLinkOpen(true);
+  }
 
-    if (value === null) {
+  function applyLink(value: string) {
+    setLinkOpen(false);
+
+    if (!editor) {
       return;
     }
 
@@ -146,7 +156,7 @@ export function Toolbar({ editor, onImportFile, onReset }: ToolbarProps) {
             disabled={!editor}
             onClick={() => run(() => editor!.chain().focus().toggleStrike().run())}
           />
-          <ToolButton label="Link" icon={Link2} active={editor?.isActive('link') ?? false} disabled={!editor} onClick={toggleLink} />
+          <ToolButton label="Link" icon={Link2} active={editor?.isActive('link') ?? false} disabled={!editor} onClick={openLinkDialog} />
         </div>
 
         <div className="toolbar-group" aria-label="Lists">
@@ -213,6 +223,17 @@ export function Toolbar({ editor, onImportFile, onReset }: ToolbarProps) {
           <ToolButton label="Reset draft" icon={Trash2} disabled={!editor} onClick={onReset} />
         </div>
       </div>
+      {linkOpen ? (
+        <PromptDialog
+          title="Add or edit link"
+          label="URL for the selected text (leave empty to remove the link)"
+          initialValue={linkInitial}
+          placeholder="https://example.com"
+          submitLabel="Apply link"
+          onSubmit={applyLink}
+          onCancel={() => setLinkOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,41 +1,23 @@
-export type FeedPreviewMode = 'desktop' | 'mobile';
+import { isTextTruncated, type PreviewMode, type TruncationConfig } from './truncation';
 
-interface FeedCutoffConfig {
-	visibleLines: number;
-	approximateCharacters: number;
-	approximateCharactersPerLine: number;
-}
+// LinkedIn-specific feed cutoff configs. The generic estimation logic lives in
+// truncation.ts; this module keeps the LinkedIn-named API the editor and the
+// browser extension already import.
+export type FeedPreviewMode = PreviewMode;
 
-export const FEED_CUTOFF_CONFIG: Record<FeedPreviewMode, FeedCutoffConfig> = {
-	desktop: {
-		visibleLines: 3,
-		approximateCharacters: 210,
-		approximateCharactersPerLine: 70,
-	},
-	mobile: {
-		visibleLines: 3,
-		approximateCharacters: 140,
-		approximateCharactersPerLine: 47,
-	},
+export const FEED_CUTOFF_CONFIG: Record<FeedPreviewMode, TruncationConfig> = {
+  desktop: {
+    visibleLines: 3,
+    approximateCharacters: 210,
+    approximateCharactersPerLine: 70,
+  },
+  mobile: {
+    visibleLines: 3,
+    approximateCharacters: 140,
+    approximateCharactersPerLine: 47,
+  },
 };
 
 export function isFeedCutoffLikely(text: string, mode: FeedPreviewMode): boolean {
-	const normalized = text.replace(/\r\n?/g, '\n').trimEnd();
-
-	if (!normalized.trim()) {
-		return false;
-	}
-
-	const config = FEED_CUTOFF_CONFIG[mode];
-	return countApproximateFeedLines(normalized, config.approximateCharactersPerLine) > config.visibleLines || Array.from(normalized).length > config.approximateCharacters;
-}
-
-function countApproximateFeedLines(text: string, approximateCharactersPerLine: number): number {
-	return text.split('\n').reduce((lineCount, line) => {
-		if (!line.trim()) {
-			return lineCount + 1;
-		}
-
-		return lineCount + Math.max(1, Math.ceil(Array.from(line).length / approximateCharactersPerLine));
-	}, 0);
+  return isTextTruncated(text, FEED_CUTOFF_CONFIG[mode]);
 }

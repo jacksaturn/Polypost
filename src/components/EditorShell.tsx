@@ -1,99 +1,48 @@
 import { useState } from 'react';
 import { generateJSON } from '@tiptap/core';
-import CharacterCount from '@tiptap/extension-character-count';
-import Link from '@tiptap/extension-link';
-import Placeholder from '@tiptap/extension-placeholder';
-import Underline from '@tiptap/extension-underline';
-import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import { EditorContent, useEditor, type JSONContent } from '@tiptap/react';
 
-import type { EditorNode } from '../lib/exportLinkedInText';
+import { APP_NAME } from '../lib/constants';
+import { editorExtensions, handleEditorPaste } from '../lib/editorConfig';
+import type { EditorNode } from '../lib/exportText';
 import { importDocumentFile } from '../lib/importDocument';
-import { looksLikeMarkdown, markdownToTipTap } from '../lib/markdownToTipTap';
-import { sanitizePastedHTML } from '../lib/pastedHtml';
 import { isFeedCutoffLikely, type FeedPreviewMode } from '../lib/feedPreview';
 import { Toolbar } from './Toolbar';
 
 interface EditorShellProps {
-  exportedText: string;
-  feedPreviewMode: FeedPreviewMode | null;
   initialContent: EditorNode;
-  showFeedCutoff: boolean;
-  onFeedCutoffChange: (showFeedCutoff: boolean) => void;
-  onFeedPreviewModeChange: (mode: FeedPreviewMode | null) => void;
   onDocumentChange: (document: EditorNode) => void;
   onReplaceDocument: (document: EditorNode) => void;
   onReset: () => void;
-}
-
-const extensions = [
-  StarterKit.configure({
-    codeBlock: false,
-    heading: {
-      levels: [2, 3],
-    },
-  }),
-  Underline,
-  Link.configure({
-    autolink: true,
-    defaultProtocol: 'https',
-    openOnClick: true,
-    HTMLAttributes: {
-      target: '_blank',
-      rel: 'noopener noreferrer nofollow',
-      title: 'Click to open. Use the Link toolbar button to edit.',
-    },
-  }),
-  Placeholder.configure({
-    placeholder: 'Paste or write your LinkedIn post draft...',
-  }),
-  CharacterCount,
-];
-
-// Sanitizes pasted content before it reaches the editor. Markdown-looking plain
-// text becomes formatted content; HTML (e.g. Word/Office) is run through the
-// sanitizer to strip empty paragraphs and Office noise. Runs in the capture
-// phase and stops the event so ProseMirror's default paste does not also fire.
-function handleEditorPaste(editor: Editor, event: ClipboardEvent) {
-  const plainText = event.clipboardData?.getData('text/plain') ?? '';
-  const html = event.clipboardData?.getData('text/html') ?? '';
-
-  if (plainText && looksLikeMarkdown(plainText)) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    editor.commands.insertContent(markdownToTipTap(plainText).content ?? []);
-    return;
-  }
-
-  if (html.trim()) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    // Parse to nodes via generateJSON rather than passing the HTML string to
-    // insertContent: insertContent treats whitespace between block tags as
-    // empty paragraphs, reintroducing the blank lines we just stripped.
-    const document = generateJSON(sanitizePastedHTML(html), extensions) as EditorNode;
-    editor.commands.insertContent(document.content ?? []);
-  }
+  // LinkedIn feed preview is opt-in: only rendered when a consumer wires the
+  // mode handler (the browser extension does). The general web editor omits
+  // these so it stays a plain formatting editor; appearance lives in the cards.
+  exportedText?: string;
+  feedPreviewMode?: FeedPreviewMode | null;
+  showFeedCutoff?: boolean;
+  onFeedCutoffChange?: (showFeedCutoff: boolean) => void;
+  onFeedPreviewModeChange?: (mode: FeedPreviewMode | null) => void;
 }
 
 export function EditorShell({
-  exportedText,
-  feedPreviewMode,
   initialContent,
-  showFeedCutoff,
-  onFeedCutoffChange,
   onDocumentChange,
-  onFeedPreviewModeChange,
   onReplaceDocument,
   onReset,
+  exportedText = '',
+  feedPreviewMode = null,
+  showFeedCutoff = false,
+  onFeedCutoffChange,
+  onFeedPreviewModeChange,
 }: EditorShellProps) {
+  const showFeedControls = Boolean(onFeedPreviewModeChange);
   const [isDragActive, setIsDragActive] = useState(false);
   const editor = useEditor({
-    extensions,
+    extensions: editorExtensions,
     content: initialContent as JSONContent,
     editorProps: {
       attributes: {
-        'aria-label': 'LinkedIn post draft editor',
+        'aria-label': 'Post draft editor',
         class: 'rich-editor-content',
       },
     },
@@ -118,7 +67,7 @@ export function EditorShell({
     try {
       const importedDocument = await importDocumentFile(file);
       const nextDocument = importedDocument.format === 'html'
-        ? (generateJSON(importedDocument.html, extensions) as EditorNode)
+        ? (generateJSON(importedDocument.html, editorExtensions) as EditorNode)
         : (editor.schema.nodeFromJSON(importedDocument.document).toJSON() as EditorNode);
 
       onReplaceDocument(nextDocument);
@@ -176,27 +125,29 @@ export function EditorShell({
   return (
     <div className="editor-shell">
       <Toolbar editor={editor} onImportFile={handleImportFile} onReset={onReset} />
-      <div className="editor-preview-controls" aria-label="Editor preview width">
-        <span>View</span>
-        <PreviewModeButton active={feedPreviewMode === null} label="Editor" onClick={() => onFeedPreviewModeChange(null)} />
-        <PreviewModeButton active={feedPreviewMode === 'desktop'} label="Desktop" onClick={() => onFeedPreviewModeChange('desktop')} />
-        <PreviewModeButton active={feedPreviewMode === 'mobile'} label="Mobile" onClick={() => onFeedPreviewModeChange('mobile')} />
-        <PreviewModeButton
-          active={Boolean(feedPreviewMode && showFeedCutoff)}
-          className="more-preview-toggle"
-          disabled={!feedPreviewMode}
-          label="...more"
-          onClick={() => onFeedCutoffChange(!showFeedCutoff)}
-        />
-      </div>
+      {showFeedControls ? (
+        <div className="editor-preview-controls" aria-label="Editor preview width">
+          <span>View</span>
+          <PreviewModeButton active={feedPreviewMode === null} label="Editor" onClick={() => onFeedPreviewModeChange?.(null)} />
+          <PreviewModeButton active={feedPreviewMode === 'desktop'} label="Desktop" onClick={() => onFeedPreviewModeChange?.('desktop')} />
+          <PreviewModeButton active={feedPreviewMode === 'mobile'} label="Mobile" onClick={() => onFeedPreviewModeChange?.('mobile')} />
+          <PreviewModeButton
+            active={Boolean(feedPreviewMode && showFeedCutoff)}
+            className="more-preview-toggle"
+            disabled={!feedPreviewMode}
+            label="...more"
+            onClick={() => onFeedCutoffChange?.(!showFeedCutoff)}
+          />
+        </div>
+      ) : null}
       <div
-        className={`editor-frame${feedPreviewMode ? ` is-feed-preview is-${feedPreviewMode}` : ''}${isDragActive ? ' is-drag-active' : ''}`}
+        className={`editor-frame${showFeedControls && feedPreviewMode ? ` is-feed-preview is-${feedPreviewMode}` : ''}${isDragActive ? ' is-drag-active' : ''}`}
         onDragOver={handleEditorDragOver}
         onDragLeave={handleEditorDragLeave}
         onDrop={handleEditorDrop}
         onMouseDown={handleEditorMouseDown}
       >
-        {feedPreviewMode ? (
+        {showFeedControls && feedPreviewMode ? (
           <div className="feed-editor-card">
             <FeedEditorHeader />
             {showFeedCutoff ? <FeedCutoffPreview mode={feedPreviewMode} text={exportedText} /> : <EditorContent editor={editor} />}
@@ -259,7 +210,7 @@ function FeedEditorHeader() {
     <div className="feed-preview-header">
       <div className="feed-avatar" aria-hidden="true">in</div>
       <div>
-        <p className="feed-author">LinkedIn Post Formatter</p>
+        <p className="feed-author">{APP_NAME}</p>
         <p className="feed-meta">Now · Public</p>
       </div>
     </div>

@@ -30,7 +30,7 @@ describe('importDocumentFile', () => {
     expect(importedDocument.format).toBe('html');
 
     if (importedDocument.format === 'html') {
-      expect(importedDocument.html.startsWith('<h2>LinkedIn Post Formatter</h2>')).toBe(true);
+      expect(importedDocument.html.startsWith('<h2>OmniPost</h2>')).toBe(true);
       expect(importedDocument.html).toContain('<h2>Features</h2>');
       expect(importedDocument.html).toContain('<ul>');
       expect(importedDocument.html).not.toContain('<img');

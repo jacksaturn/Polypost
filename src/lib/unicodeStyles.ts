@@ -8,6 +8,11 @@ export interface UnicodeStyleOptions {
 
 type UnicodeVariant = 'bold' | 'italic' | 'boldItalic' | 'monospace';
 
+// Bare URL matcher, shared with the X character-weighting logic (each URL
+// counts as a fixed 23 characters there). Kept in sync with the URL arm of
+// LINKEDIN_TOKEN_PATTERN below.
+export const URL_PATTERN = /https?:\/\/[^\s]+/gu;
+
 const LINKEDIN_TOKEN_PATTERN = /(https?:\/\/[^\s]+|[#@][A-Za-z0-9_][A-Za-z0-9_.-]*)/gu;
 const EMOJI_PATTERN = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
 const COMBINING_MARK_PATTERN = /\p{Mark}/u;
