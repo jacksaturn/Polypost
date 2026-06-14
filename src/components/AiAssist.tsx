@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Settings, Sparkles } from 'lucide-react';
 
 import { SourcesPanel } from './SourcesPanel';
@@ -35,6 +35,17 @@ export function AiAssist({ ready, busy, error, onSubmit, onOpenSettings, hasDraf
   // -1 means "live input"; otherwise an index into history.
   const [historyIndex, setHistoryIndex] = useState(-1);
   const prevBusy = useRef(busy);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow the box to fit its content (typed or recalled from history), capped by a
+  // max-height in CSS beyond which it scrolls.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [instruction]);
 
   useEffect(() => {
     savePromptHistory(history);
@@ -74,8 +85,15 @@ export function AiAssist({ ready, busy, error, onSubmit, onOpenSettings, hasDraf
     submitPrompt(instruction);
   }
 
-  // Up/Down walk previously submitted prompts (most recent first).
-  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  // Enter submits; Shift+Enter inserts a newline. Up/Down walk previously
+  // submitted prompts (most recent first).
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submitPrompt(instruction);
+      return;
+    }
+
     if (event.key === 'ArrowUp') {
       if (history.length === 0) {
         return;
@@ -117,8 +135,9 @@ export function AiAssist({ ready, busy, error, onSubmit, onOpenSettings, hasDraf
       <form className="ai-assist-form" onSubmit={handleSubmit}>
         <div className="ai-assist-row">
           <Sparkles aria-hidden="true" size={16} className="ai-assist-icon" />
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={instruction}
             placeholder="Ask AI to write or improve this post… (↑/↓ for history)"
             aria-label="AI instruction"

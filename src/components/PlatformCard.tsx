@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Check, Copy, ExternalLink, Link2, Loader, Pencil, RotateCcw, Sparkles } from 'lucide-react';
 
 import { copyPlainText } from '../lib/clipboard';
-import type { EditorNode } from '../lib/exportText';
+import { exportText, type EditorNode } from '../lib/exportText';
+import { parseMentionSegments } from '../lib/mentions';
 import type { Attachment } from '../lib/media';
 import type { PlatformRender, PlatformSpec } from '../lib/platforms/types';
 import { isTextTruncated, type PreviewMode, type TruncationConfig } from '../lib/truncation';
@@ -78,6 +79,9 @@ export function PlatformCard({
   const hasText = Boolean(render.text.trim());
   const showCollapsed = truncated && !expanded && activeCutoff !== null;
   const displayText = showCollapsed && activeCutoff ? collapseText(render.text, activeCutoff) : render.text;
+  // The flattened mention strings present in this platform's text, so they can be
+  // highlighted in the preview the same way the editor highlights @[Name] tokens.
+  const mentionStrings = useMemo(() => collectMentionStrings(document, spec), [document, spec]);
 
   const [copyFlash, setCopyFlash] = useState<CopyFlash>('idle');
   const flashTimer = useRef<number | null>(null);
@@ -188,7 +192,7 @@ export function PlatformCard({
           <p className="platform-card-text">
             {hasText ? (
               <>
-                {displayText}
+                {renderMentionText(displayText, mentionStrings)}
                 {truncated ? (
                   <button type="button" className="platform-card-seemore" onClick={() => setExpanded((value) => !value)}>
                     {expanded ? ' less...' : ` ${spec.truncationLabel || 'more...'}`}
@@ -272,4 +276,37 @@ function collapseText(text: string, config: TruncationConfig): string {
   }
 
   return `${slice.trimEnd()}…`;
+}
+
+// The flattened display form of each @[Name] mention in this platform's text
+// (e.g. "@Scott Hanselman" on LinkedIn, "@ScottHanselman" elsewhere).
+function collectMentionStrings(doc: EditorNode, spec: PlatformSpec): string[] {
+  const exported = exportText(doc, { unicodeStyling: spec.allowUnicodeStyling });
+  const collapse = !(spec.keepMentionSpaces ?? false);
+  const strings = parseMentionSegments(exported)
+    .filter((segment): segment is { kind: 'mention'; name: string } => segment.kind === 'mention')
+    .map((segment) => `@${collapse ? segment.name.replace(/\s+/g, '') : segment.name}`);
+  return [...new Set(strings)];
+}
+
+// Splits the displayed text on the known mention strings and wraps each in a
+// highlighted span (the rest renders as plain text).
+function renderMentionText(text: string, mentions: string[]) {
+  if (mentions.length === 0 || !text) {
+    return text;
+  }
+
+  const escaped = [...mentions]
+    .sort((a, b) => b.length - a.length)
+    .map((mention) => mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(${escaped.join('|')})`, 'g');
+  const mentionSet = new Set(mentions);
+
+  return text.split(pattern).map((part, index) =>
+    mentionSet.has(part) ? (
+      <span key={index} className="mention-ref">{part}</span>
+    ) : (
+      part
+    ),
+  );
 }

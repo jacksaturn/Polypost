@@ -47,6 +47,10 @@ describe('mentions', () => {
     expect(flattenMentionTokens('Thanks @[Scott Hanselman]! See @[ ]')).toBe('Thanks @Scott Hanselman! See @[ ]');
   });
 
+  it('removes spaces when collapseSpaces is set (single-word handle-style token)', () => {
+    expect(flattenMentionTokens('Thanks @[Scott Hanselman]!', { collapseSpaces: true })).toBe('Thanks @ScottHanselman!');
+  });
+
   it('transforms only the text between tokens', () => {
     const result = transformAroundMentionTokens('bold @[Scott Hanselman] text', (chunk) => chunk.toUpperCase());
 

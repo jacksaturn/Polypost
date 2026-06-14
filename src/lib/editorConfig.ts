@@ -8,6 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 
 import type { EditorNode } from './exportText';
 import { looksLikeMarkdown, markdownToTipTap } from './markdownToTipTap';
+import { MentionHighlight } from './mentionHighlight';
 import { sanitizePastedHTML } from './pastedHtml';
 
 // Shared TipTap configuration used by both the master editor (EditorShell) and
@@ -35,6 +36,7 @@ export const editorExtensions = [
     placeholder: 'Paste or write your post draft...',
   }),
   CharacterCount,
+  MentionHighlight,
 ];
 
 // Sanitizes pasted content before it reaches the editor. Markdown-looking plain

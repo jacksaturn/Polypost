@@ -25,6 +25,11 @@ export interface PlatformSpec {
   warnings: PlatformWarningRule[];
   // Shown under the character meter when the count is an approximation.
   disclaimer?: string;
+  // Keep spaces in a flattened @[Name] mention ("@Scott Hanselman"). LinkedIn opts
+  // in — its extension resolves the token to a real mention. By default the spaces
+  // are removed ("@ScottHanselman") so handle-based platforms' autocomplete fires
+  // on the whole name instead of splitting it at the space.
+  keepMentionSpaces?: boolean;
 }
 
 export interface PlatformCapabilities {

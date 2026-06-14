@@ -12,6 +12,9 @@ export const linkedinSpec: PlatformSpec = {
   warningThreshold: LINKEDIN_POST_WARNING_THRESHOLD,
   counting: 'nfc-codepoints',
   allowUnicodeStyling: true,
+  // The extension resolves @[Name] into a real LinkedIn mention, so keep the full
+  // spaced "@Display Name".
+  keepMentionSpaces: true,
   truncation: {
     desktop: FEED_CUTOFF_CONFIG.desktop,
     mobile: FEED_CUTOFF_CONFIG.mobile,

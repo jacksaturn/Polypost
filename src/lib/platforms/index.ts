@@ -41,7 +41,7 @@ export interface RenderOptions {
 export function renderForPlatform(doc: EditorNode, spec: PlatformSpec, options?: RenderOptions): PlatformRender {
   // The web app never resolves real mentions (it only copies/previews), so
   // @[Name] tokens flatten to plain "@Name" for every platform.
-  const body = flattenMentionTokens(exportText(doc, { unicodeStyling: spec.allowUnicodeStyling }));
+  const body = flattenMentionTokens(exportText(doc, { unicodeStyling: spec.allowUnicodeStyling }), { collapseSpaces: !(spec.keepMentionSpaces ?? false) });
   const links = options?.linkUrls ?? [];
   // Append shared links only when there's body text — bare links on an empty
   // draft would render a post that's just URLs.

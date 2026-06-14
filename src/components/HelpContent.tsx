@@ -93,8 +93,10 @@ export function HelpContent() {
         <h3>Mentions</h3>
         <ul className="help-list">
           <li>
-            Mention people as @[Name], for example @[Scott Hanselman]. The editor shows the token as plain text; the
-            preview and character count show it as @Name.
+            Mention people as @[Name], for example @[Scott Hanselman]. The editor shows the token as plain text. On
+            LinkedIn the preview shows it as @Scott Hanselman; on X, Bluesky, Threads, and Mastodon it collapses to a
+            single handle-style token (@ScottHanselman) so their autocomplete fires on the whole name instead of
+            splitting it at the space.
           </li>
           <li>
             Posting through the extension resolves each @[Name] through LinkedIn's mention typeahead into a real,
@@ -102,8 +104,8 @@ export function HelpContent() {
             than mentioning the wrong person.
           </li>
           <li>
-            Copy flattens @[Name] to plain @Name: pasted text can't become a real mention. To mention after pasting,
-            retype @Name in the platform's composer and pick the person from the dropdown.
+            Copy can't produce a real mention — pasted text never does. To mention after pasting, type "@" in the
+            platform's composer and pick the person from the dropdown.
           </li>
         </ul>
       </section>

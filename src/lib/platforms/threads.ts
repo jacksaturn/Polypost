@@ -17,7 +17,13 @@ export const threadsSpec: PlatformSpec = {
     copy: true,
     // Threads migrated to threads.com (April 2025); threads.net still redirects.
     openComposer: {
-      url: (text) => `https://www.threads.com/intent/post?text=${encodeURIComponent(text)}`,
+      // Threads' intent endpoint turns emoji in the `text` query param into "?".
+      // When the post contains emoji, open the composer empty and rely on the
+      // clipboard (Copy & open copies the full text first); otherwise pre-fill.
+      url: (text) =>
+        /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u.test(text)
+          ? 'https://www.threads.com/intent/post'
+          : `https://www.threads.com/intent/post?text=${encodeURIComponent(text)}`,
       prefillsText: true,
     },
   },

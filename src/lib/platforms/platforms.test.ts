@@ -4,6 +4,7 @@ import { exportLinkedInText, getLinkedInCharacterSummary, type EditorNode } from
 import { flattenMentionTokens } from '../mentions';
 import { instagramSpec } from './instagram';
 import { linkedinSpec } from './linkedin';
+import { threadsSpec } from './threads';
 import { PLATFORMS, PLATFORMS_BY_ID, renderForPlatform } from './index';
 
 function doc(content: EditorNode[]): EditorNode {
@@ -36,6 +37,18 @@ describe('renderForPlatform (LinkedIn parity)', () => {
     const render = renderForPlatform(document, linkedinSpec);
 
     expect(render.summary).toEqual(expected);
+  });
+});
+
+describe('renderForPlatform mentions', () => {
+  const document = doc([paragraph([text('Thanks '), text('@[Scott Hanselman]'), text('!')])]);
+
+  it('keeps the spaced @Name on LinkedIn but collapses to @NameNoSpaces on handle-based platforms', () => {
+    expect(renderForPlatform(document, linkedinSpec).text).toBe('Thanks @Scott Hanselman!');
+    expect(renderForPlatform(document, PLATFORMS_BY_ID.x).text).toBe('Thanks @ScottHanselman!');
+    expect(renderForPlatform(document, threadsSpec).text).toBe('Thanks @ScottHanselman!');
+    expect(renderForPlatform(document, PLATFORMS_BY_ID.bluesky).text).toBe('Thanks @ScottHanselman!');
+    expect(renderForPlatform(document, PLATFORMS_BY_ID.mastodon).text).toBe('Thanks @ScottHanselman!');
   });
 });
 
@@ -98,6 +111,16 @@ describe('platform registry', () => {
       expect(url).not.toContain('\n');
       expect(url).toContain(encodeURIComponent(tricky));
     }
+  });
+
+  it('opens the Threads composer without a text pre-fill when the post has emoji', () => {
+    const composer = threadsSpec.capabilities.openComposer!;
+    // Plain text still pre-fills.
+    expect(composer.url('Launch day')).toBe('https://www.threads.com/intent/post?text=Launch%20day');
+    // Emoji present -> open empty (Threads mangles emoji in the query param; the
+    // clipboard carries the full text for pasting).
+    expect(composer.url('Launch day 🚀')).toBe('https://www.threads.com/intent/post');
+    expect(composer.url('Nice ✨ work')).toBe('https://www.threads.com/intent/post');
   });
 });
 

@@ -384,22 +384,30 @@ h2 {
 
 .ai-assist-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .ai-assist-icon {
   color: #6d28d9;
   flex: 0 0 auto;
+  margin-top: 9px;
 }
 
-.ai-assist-row input {
+/* Auto-growing multiline prompt box (height is set to scrollHeight in JS, capped
+   by max-height here). */
+.ai-assist-row textarea {
   flex: 1 1 auto;
   min-height: 38px;
-  padding: 0 12px;
+  max-height: 200px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  font: inherit;
   font-size: 0.9rem;
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
 }
 
 /* Compact Generate button so it doesn't tower over the input. The extra class
@@ -729,6 +737,13 @@ h2 {
   font-size: 0.92rem;
   line-height: 1.5;
   color: var(--ink);
+}
+
+/* Name references: @[Name] tokens in the editor and the flattened mention in the
+   preview cards, highlighted in the platform blue. */
+.mention-ref {
+  color: var(--linkedin-blue);
+  font-weight: 600;
 }
 
 .platform-card-modes {

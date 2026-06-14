@@ -44,12 +44,21 @@ export function parseMentionSegments(text: string): MentionSegment[] {
   return segments;
 }
 
-// Replaces "@[Display Name]" tokens with plain "@Display Name" for surfaces
-// where a real mention is impossible (copy, preview, character counts).
-export function flattenMentionTokens(text: string): string {
+// Replaces "@[Display Name]" tokens with "@Display Name" for surfaces where a
+// real mention is impossible (copy, preview, character counts). `collapseSpaces`
+// removes the spaces in the name ("@DisplayName") so a single-word handle-style
+// token triggers the whole-name autocomplete on platforms that mention by handle
+// (Threads, X, Bluesky, Mastodon) instead of splitting a multi-word name.
+export function flattenMentionTokens(text: string, options: { collapseSpaces?: boolean } = {}): string {
+  const collapseSpaces = options.collapseSpaces ?? false;
   return text.replace(createMentionTokenPattern(), (token, name: string) => {
     const trimmed = name.trim();
-    return trimmed ? `@${trimmed}` : token;
+
+    if (!trimmed) {
+      return token;
+    }
+
+    return `@${collapseSpaces ? trimmed.replace(/\s+/g, '') : trimmed}`;
   });
 }
 
