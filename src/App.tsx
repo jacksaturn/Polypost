@@ -9,7 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { HelpModal } from './components/HelpModal';
 import { LlmSettings } from './components/LlmSettings';
 import { MediaTray } from './components/MediaTray';
-import { OmniPostMark } from './components/OmniPostMark';
+import { PolypostMark } from './components/PolypostMark';
 import { PlatformRail } from './components/PlatformRail';
 import { PlatformToggleChips } from './components/PlatformToggleChips';
 import { loadTheme, saveTheme, type Theme } from './lib/theme';
@@ -434,14 +434,14 @@ function App() {
       <main className="app-shell">
         <header className="app-header" aria-labelledby="app-title">
           <div className="brand-lockup" aria-hidden="true">
-            <OmniPostMark className="brand-mark" />
+            <PolypostMark className="brand-mark" />
           </div>
           <div className="header-copy">
             <h1 id="app-title">{APP_NAME}</h1>
             <p className="subtitle">Draft once, format for every platform. Connect an AI assistant to help write your post and tailor it to each platform's length and style.</p>
           </div>
           <div className="header-actions">
-            <button type="button" className="header-icon-button" aria-label="How OmniPost works" title="Help" onClick={() => setShowHelp(true)}>
+            <button type="button" className="header-icon-button" aria-label="How Polypost works" title="Help" onClick={() => setShowHelp(true)}>
               <HelpCircle aria-hidden="true" size={18} />
             </button>
             <button
@@ -458,7 +458,7 @@ function App() {
             </button>
             <a
               className="github-link"
-              href="https://github.com/markrussinovich/OmniPost"
+              href="https://github.com/markrussinovich/Polypost"
               target="_blank"
               rel="noreferrer noopener"
               aria-label="Open GitHub repository"

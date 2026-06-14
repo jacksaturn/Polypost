@@ -1,14 +1,14 @@
-# OmniPost
+# Polypost
 
 Draft a post once and see it formatted for every platform at the same time. The main editor uses TipTap for word-processor-style editing; a live preview rail shows what your post looks like on **LinkedIn, X, Bluesky, Threads, Facebook, and Instagram**, each with its own character limit, counting rule, and formatting limits applied. Edit inside any preview to tailor that platform's version, then copy it (or open that platform's composer) in one click.
 
 It ships in two forms:
 
-- **Web app** — the multi-platform editor. Live at https://markrussinovich.github.io/OmniPost/
+- **Web app** — the multi-platform editor. Live at https://markrussinovich.github.io/Polypost/
 - **Browser extension** — runs on LinkedIn itself. Clicking **Start a post** opens the formatter *as* the composer; its **Post** button writes the formatted text into LinkedIn's native composer and submits through LinkedIn's own Post flow. The extension remains LinkedIn-specific. See [Browser Extension](#browser-extension).
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="OmniPost screenshot" width="640">
+  <img src="docs/screenshot.png" alt="Polypost screenshot" width="640">
 </p>
 
 This is not an official app of any platform. Drafts stay in your browser; the extension only acts on LinkedIn when you click Post.

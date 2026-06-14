@@ -273,14 +273,14 @@ h2 {
   letter-spacing: 0;
 }
 
-@keyframes omnipost-spin {
+@keyframes polypost-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
 .spin {
-  animation: omnipost-spin 0.9s linear infinite;
+  animation: polypost-spin 0.9s linear infinite;
 }
 
 /* ---- Header gear button ---- */
