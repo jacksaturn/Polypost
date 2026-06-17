@@ -1804,6 +1804,19 @@ h2 {
   background: #1573d4;
 }
 
+[data-theme='dark'] .secondary-action {
+  border-color: rgba(106, 176, 247, 0.32);
+  background: var(--surface-alt);
+  color: var(--linkedin-blue-dark);
+}
+
+[data-theme='dark'] .secondary-action:hover,
+[data-theme='dark'] .secondary-action:focus-visible {
+  border-color: rgba(149, 197, 251, 0.52);
+  background: #253044;
+  outline: none;
+}
+
 /* Active toolbar button (e.g. Bold when selected): a dark-friendly blue tint with
    a light-blue glyph — was white-on-light (invisible) in dark mode. */
 [data-theme='dark'] .tool-button.is-active {
