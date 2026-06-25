@@ -912,7 +912,6 @@ h2 {
 
 .editor-shell {
   display: flex;
-  min-height: 590px;
   flex-direction: column;
 }
 
@@ -1277,7 +1276,7 @@ h2 {
 }
 
 .rich-editor-content {
-  min-height: 560px;
+  min-height: 180px;
   padding: 26px 30px 36px;
   outline: none;
   color: #1f2937;
