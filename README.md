@@ -4,7 +4,7 @@ Draft a post once and format it for every platform at the same time. The main ed
 
 It ships in two forms:
 
-- **Web app** — the multi-platform editor. Live at https://markrussinovich.github.io/Polypost/
+- **Web app** — the multi-platform editor. Live at https://aka.ms/Polypost
 - **LinkedIn browser extension** — a LinkedIn-only companion that turns LinkedIn's own composer into the editor: **Start a post** opens it in place of the native box, and **Post** publishes through LinkedIn's own flow. See [LinkedIn browser extension](#linkedin-browser-extension).
 
 <p align="center">
