@@ -345,6 +345,59 @@ describe('linkedinComposer helpers', () => {
     expect(discardHandler).toHaveBeenCalledTimes(1);
   });
 
+  it('never auto-confirms unrelated destructive dialogs', () => {
+    // A feed item's Delete post? prompt carries delete/yes labels; the
+    // dismisser must not touch it (previously yes/ok/delete were clicked in
+    // any dialog page-wide).
+    document.body.innerHTML = `
+      <div role="alertdialog">
+        <p>Delete post?</p>
+        <p>This action cannot be undone.</p>
+        <button type="button">Cancel</button>
+        <button type="button">Delete</button>
+        <button type="button">Yes</button>
+      </div>
+    `;
+    const clickHandler = vi.fn();
+    document.querySelectorAll('button').forEach((button) => button.addEventListener('click', clickHandler));
+
+    expect(dismissNativeComposerDiscardConfirmation()).toBe(false);
+
+    expect(clickHandler).not.toHaveBeenCalled();
+  });
+
+  it('leaves discard confirmations outside the share flow alone', () => {
+    // A profile-edit Discard changes? prompt mentions neither post nor draft
+    // and carries no share-flow markers, so it stays for the user.
+    document.body.innerHTML = `
+      <div role="alertdialog">
+        <p>Discard changes?</p>
+        <button type="button">Keep editing</button>
+        <button type="button">Discard</button>
+      </div>
+    `;
+    const clickHandler = vi.fn();
+    document.querySelectorAll('button').forEach((button) => button.addEventListener('click', clickHandler));
+
+    expect(dismissNativeComposerDiscardConfirmation()).toBe(false);
+
+    expect(clickHandler).not.toHaveBeenCalled();
+  });
+
+  it('ignores Next/Done buttons in dialogs without share-flow markers', () => {
+    // An unrelated wizard dialog must not be advanced while the bridge polls
+    // for the media editor.
+    document.body.innerHTML = `
+      <div role="dialog" id="unrelated-wizard">
+        <p>Set up your newsletter</p>
+        <button type="button">Next</button>
+      </div>
+    `;
+    mockVisible(document.querySelector<HTMLElement>('#unrelated-wizard')!);
+
+    expect(findLinkedInMediaNextButton()).toBeNull();
+  });
+
   it('finds the composer inside a shadow root', () => {
     document.body.innerHTML = '<div id="interop-outlet"></div>';
     const host = document.querySelector<HTMLElement>('#interop-outlet');
@@ -496,7 +549,7 @@ describe('linkedinComposer helpers', () => {
       <div id="linkedin-post-formatter-extension-root">
         <div role="dialog"><button type="button">Next</button></div>
       </div>
-      <div role="dialog" id="media-editor">
+      <div role="dialog" id="media-editor" class="share-box-v2__modal">
         <button type="button" disabled>Next</button>
       </div>
     `;
@@ -515,7 +568,7 @@ describe('linkedinComposer helpers', () => {
       <div role="dialog" class="vjs-modal-dialog vjs-text-track-settings" id="vjs-dialog">
         <button type="button">Done</button>
       </div>
-      <div role="dialog" id="hidden-dialog">
+      <div role="dialog" id="hidden-dialog" class="media-editor">
         <button type="button">Next</button>
       </div>
     `;

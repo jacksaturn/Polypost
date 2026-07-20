@@ -182,13 +182,45 @@ export function closeNativeLinkedInComposer(root: ParentNode = document): boolea
   return clicked;
 }
 
+// Auto-clicked dialogs must belong to the share-composer flow: an unrelated
+// dialog can carry the same button labels (Delete post?, Delete comment?),
+// and silently confirming one would destroy user data. A dialog qualifies
+// when it carries LinkedIn's share-* / media editor class markers (on itself
+// or a descendant).
+function hasComposerFlowMarker(dialog: HTMLElement): boolean {
+  if (dialog.className.includes('share-') || dialog.className.includes('media-editor')) {
+    return true;
+  }
+
+  return queryAllDeep('[class*="share-"], [class*="media-editor"]', dialog).length > 0;
+}
+
+// Only a confirmation about discarding a share-composer post/draft may be
+// auto-dismissed. Generic destructive prompts (Delete post? on a feed item,
+// Discard changes? on a profile edit) must be left for the user.
+function isComposerDiscardDialog(dialog: HTMLElement): boolean {
+  if (dialog.closest(EXTENSION_ROOT_SELECTOR)) {
+    return false;
+  }
+
+  const text = (dialog.textContent ?? '').toLowerCase();
+
+  if (!text.includes('discard')) {
+    return false;
+  }
+
+  return text.includes('post') || text.includes('draft') || hasComposerFlowMarker(dialog);
+}
+
 export function dismissNativeComposerDiscardConfirmation(root: ParentNode = document): boolean {
   const controls = getDialogs(root)
-    .filter((dialog) => !dialog.closest(EXTENSION_ROOT_SELECTOR))
+    .filter(isComposerDiscardDialog)
     .flatMap((dialog) => getButtonLikeControls(dialog));
+  // Exact-label matches only: never auto-click yes/ok/delete, which are the
+  // labels unrelated destructive confirmations use.
   const discardControl = controls.find((control) => {
     const label = getControlLabel(control);
-    return /^(discard|leave|delete|yes|ok)$/.test(label) || label.includes('discard post') || label.includes('discard draft');
+    return /^(discard|leave)$/.test(label) || label.includes('discard post') || label.includes('discard draft');
   });
 
   if (!discardControl) {
@@ -300,6 +332,13 @@ export function dropFilesOnLinkedInComposer(files: File[], root: ParentNode = do
 export function findLinkedInMediaNextButton(root: ParentNode = document): HTMLElement | null {
   const dialogs = queryAllDeep<HTMLElement>('[role="dialog"]', root).filter((dialog) => {
     if (dialog.closest(EXTENSION_ROOT_SELECTOR) || dialog.className.includes('vjs-')) {
+      return false;
+    }
+
+    // Only the share flow's own media editor may be advanced. Clicking Next
+    // or Done in an arbitrary dialog could walk the user through an
+    // unrelated wizard while the bridge polls for up to a minute.
+    if (!hasComposerFlowMarker(dialog)) {
       return false;
     }
 
