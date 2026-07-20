@@ -20,13 +20,19 @@ import {
   type DraftSnapshot,
 } from '../lib/storage';
 
+// 'posted'  = Post clicked and LinkedIn's composer confirmed closed.
+// 'unknown' = Post clicked but the close was never confirmed — the post may or
+//             may not have gone out, so the user must check LinkedIn first.
+// 'failed'  = the bridge aborted before Post was clicked; nothing was posted.
+export type PostOutcome = 'posted' | 'unknown' | 'failed';
+
 interface LinkedInComposerOverlayProps {
   open: boolean;
   onClose: () => void;
-  onPost: (text: string, files: File[]) => Promise<boolean>;
+  onPost: (text: string, files: File[]) => Promise<PostOutcome>;
 }
 
-type Status = 'idle' | 'copied' | 'posting' | 'posted' | 'error';
+type Status = 'idle' | 'copied' | 'posting' | 'posted' | 'unknown' | 'error';
 
 const EMPTY_DOCUMENT: EditorNode = {
   type: 'doc',
@@ -218,10 +224,21 @@ export function LinkedInComposerOverlay({ open, onClose, onPost }: LinkedInCompo
     setStatus('posting');
     setStatusMessage(attachments.length > 0 ? 'Uploading media and posting through LinkedIn...' : 'Posting through LinkedIn...');
 
-    if (await onPost(exportedText, attachments)) {
+    const outcome = await onPost(exportedText, attachments);
+
+    if (outcome === 'posted') {
       setAttachments([]);
       setStatus('posted');
       setStatusMessage('Posted');
+      return;
+    }
+
+    if (outcome === 'unknown') {
+      // The Post click went through but LinkedIn never confirmed. Keep the
+      // draft and attachments so nothing is lost, and warn before a retry
+      // that could double-post.
+      setStatus('unknown');
+      setStatusMessage('Post submitted, but LinkedIn did not confirm it went out. Check your LinkedIn feed before posting again.');
       return;
     }
 

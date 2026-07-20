@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { LinkedInComposerOverlay } from './LinkedInComposerOverlay';
+import { LinkedInComposerOverlay, type PostOutcome } from './LinkedInComposerOverlay';
 import { parseMentionSegments, type MentionSegment } from '../lib/mentions';
 import {
   attachFilesToLinkedInComposer,
@@ -169,7 +169,7 @@ function closeFormatter() {
   closeNativeComposer();
 }
 
-async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean> {
+async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOutcome> {
   log('postThroughLinkedIn start, textLength:', text.length, 'files:', files.length);
   isBridgingToNativeComposer = true;
 
@@ -200,7 +200,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
     if (!composer) {
       log('FAILED: no composer found');
       dumpDomState('post-no-composer');
-      return false;
+      return 'failed';
     }
 
     // Switch suppression to focusable mode so we can focus + insert text. The
@@ -213,7 +213,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
 
       if (!attached) {
         log('FAILED: could not attach media');
-        return false;
+        return 'failed';
       }
 
       // Wait until the upload registers. The redesigned composer attaches
@@ -224,7 +224,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
 
       if (!mediaAttached) {
         log('FAILED: media never attached');
-        return false;
+        return 'failed';
       }
 
       // Media processing can re-render the editor, so re-acquire it.
@@ -252,7 +252,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
 
       if (!wrote) {
         log('FAILED: could not write text');
-        return false;
+        return 'failed';
       }
 
       // Attached media suppresses link previews, so only wait when there is
@@ -271,7 +271,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
 
     if (!postButton) {
       log('FAILED: native Post button never enabled');
-      return false;
+      return 'failed';
     }
 
     clickLinkedInControl(postButton);
@@ -282,19 +282,24 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<boolean
     );
     log('native composer closed after post:', composerClosed);
 
+    if (!composerClosed) {
+      // Post outcome unknown: the Post click went through but LinkedIn never
+      // confirmed by closing its dialog. Keep the formatter open so the user
+      // sees the unconfirmed-outcome notice (and their draft/attachments are
+      // not lost), and put suppression back in hidden mode so the still-open
+      // native dialog cannot steal focus. Closing the formatter dismisses or
+      // reveals the native composer as usual.
+      log('WARNING: composer still open after Post click, outcome unknown');
+      suppressNativeComposer('hidden');
+      hideNativeComposer();
+      return 'unknown';
+    }
+
     isFormatterOpen = false;
     renderFormatter(true);
     showNativeComposer();
-
-    if (!composerClosed) {
-      // Post outcome unknown; hand LinkedIn's composer back to the user
-      // instead of leaving an invisible dialog blocking the page.
-      log('WARNING: composer still open after Post click, revealing it');
-    } else {
-      log('SUCCESS: posted through LinkedIn');
-    }
-
-    return true;
+    log('SUCCESS: posted through LinkedIn');
+    return 'posted';
   } finally {
     isBridgingToNativeComposer = false;
   }

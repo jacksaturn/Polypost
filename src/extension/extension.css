@@ -305,6 +305,10 @@
   color: #b42318;
 }
 
+.lipf-status.is-unknown {
+  color: #b25e09;
+}
+
 .lipf-full-workspace {
   display: flex;
   min-height: 0;
