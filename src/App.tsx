@@ -21,7 +21,7 @@ import { docToMarkdown, docToPlainText } from './lib/ai/docText';
 import { buildSourcesBlock, loadSources, saveSources, type Source } from './lib/ai/sources';
 import { markdownToTipTap } from './lib/markdownToTipTap';
 import { fetchLinkPreview, lastUrlInText, shouldRefreshLinkPreview } from './lib/linkPreview';
-import { revokeAttachment, type Attachment, type LinkPreview } from './lib/media';
+import { restoreDraftAttachments, revokeAttachment, serializeAttachmentsForDraft, type Attachment, type LinkPreview } from './lib/media';
 import { clearActiveAttachment, loadActiveAttachment, putActiveAttachment } from './lib/attachmentStore';
 import { generateFit } from './lib/ai/fit';
 import { generateText } from './lib/ai/llmClient';
@@ -603,16 +603,32 @@ function App() {
 
   async function handleSaveDraftSnapshot(title: string) {
     const characterCount = renderForPlatform(workspace.master, PLATFORMS_BY_ID.linkedin).summary.count;
-    const result = saveDraftSnapshot(workspace.master, title, characterCount, {
+    const extras = {
       overrides: workspace.overrides,
       aiVersions: Object.fromEntries(aiVersions) as Partial<Record<PlatformId, EditorNode>>,
       enabledPlatforms: workspace.enabledPlatforms,
       sources,
+    };
+    const attachments = imageAttachment ? await serializeAttachmentsForDraft([imageAttachment]) : [];
+    let result = saveDraftSnapshot(workspace.master, title, characterCount, {
+      ...extras,
+      attachments: attachments.length ? attachments : undefined,
     });
+    let notice: string | null = null;
+
+    // A large image can push the snapshot past the localStorage quota; a draft
+    // without its picture beats no draft at all.
+    if (!result.ok && attachments.length) {
+      result = saveDraftSnapshot(workspace.master, title, characterCount, extras);
+
+      if (result.ok) {
+        notice = 'Draft saved, but the attached image was too large to save with it.';
+      }
+    }
 
     if (result.ok) {
       setDraftHistory(loadDraftHistory());
-      setStorageNotice(null);
+      setStorageNotice(notice);
     } else {
       setStorageNotice(result.message);
     }
@@ -631,7 +647,7 @@ function App() {
     startedPreviewKeys.current.clear();
     setLinkPreviews(new Map());
     setDebouncedPlatformPreviewUrls([]);
-    handleSetImageAttachment(null);
+    handleSetImageAttachment(restoreDraftAttachments(draft.attachments)[0] ?? null);
     setSources(draft.sources ?? []);
     setWorkspace((prev) => ({
       master: draft.document,
