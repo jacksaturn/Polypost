@@ -475,17 +475,16 @@ export function findMentionTypeaheadOption(name: string, root: ParentNode = docu
     return rect.width > 0 && rect.height > 0;
   });
 
-  const optionName = (option: HTMLElement) => {
-    const hit = option.querySelector<HTMLElement>(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR);
-    return normalizeMentionName(hit?.textContent ?? '');
-  };
-
   // Only an exact (case/whitespace-insensitive) name match is clicked: a wrong
-  // mention is worse than the name degrading to plain text.
-  return options.find((option) => optionName(option) === target)
-    ?? options.find((option) => !option.querySelector(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR)
-      && normalizeMentionName(option.textContent ?? '').startsWith(target))
-    ?? null;
+  // mention is worse than the name degrading to plain text. Options without
+  // LinkedIn's hit-text markup compare their entire text, which must still
+  // equal the name exactly - never a prefix match, since an option whose
+  // name-plus-headline merely starts with the target is one markup change
+  // away from silently mentioning the wrong person.
+  return options.find((option) => {
+    const hit = option.querySelector<HTMLElement>(MENTION_TYPEAHEAD_HIT_NAME_SELECTOR);
+    return normalizeMentionName((hit ?? option).textContent ?? '') === target;
+  }) ?? null;
 }
 
 // Finds the mention entity LinkedIn inserted for the given display name.

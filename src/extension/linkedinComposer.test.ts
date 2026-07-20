@@ -234,6 +234,33 @@ describe('linkedinComposer helpers', () => {
     expect(findMentionTypeaheadOption('jane doe')).toBeNull();
   });
 
+  it('never clicks an option whose text merely starts with the mention name', () => {
+    // Without the hit-text markup an option's textContent is name + headline;
+    // a prefix match would be one markup change away from mentioning the
+    // wrong person, so the mention must degrade to plain text instead.
+    document.body.innerHTML = `
+      <div class="editor-typeahead__typeahead-tray" role="listbox">
+        <div role="option">Scott Hanselman VP of Developer Community at Microsoft</div>
+      </div>
+    `;
+    document.querySelectorAll<HTMLElement>('[role="option"]').forEach(mockVisible);
+
+    expect(findMentionTypeaheadOption('scott hanselman')).toBeNull();
+  });
+
+  it('accepts an option without hit-text markup only when its entire text is the name', () => {
+    document.body.innerHTML = `
+      <div class="editor-typeahead__typeahead-tray" role="listbox">
+        <div role="option">Scott Hanselman VP of Developer Community at Microsoft</div>
+        <div role="option"> Scott  Hanselman </div>
+      </div>
+    `;
+    const options = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]'));
+    options.forEach(mockVisible);
+
+    expect(findMentionTypeaheadOption('scott hanselman')).toBe(options[1]);
+  });
+
   it('ignores typeahead options inside the extension root or outside a typeahead surface', () => {
     document.body.innerHTML = `
       <div id="linkedin-post-formatter-extension-root">

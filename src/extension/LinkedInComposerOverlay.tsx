@@ -26,10 +26,18 @@ import {
 // 'failed'  = the bridge aborted before Post was clicked; nothing was posted.
 export type PostOutcome = 'posted' | 'unknown' | 'failed';
 
+export interface PostResult {
+  outcome: PostOutcome;
+  // Mentions that could not be resolved through LinkedIn's typeahead degrade
+  // to plain "@name" text; the counts let the overlay tell the user.
+  mentionsRequested: number;
+  mentionsApplied: number;
+}
+
 interface LinkedInComposerOverlayProps {
   open: boolean;
   onClose: () => void;
-  onPost: (text: string, files: File[]) => Promise<PostOutcome>;
+  onPost: (text: string, files: File[]) => Promise<PostResult>;
 }
 
 type Status = 'idle' | 'copied' | 'posting' | 'posted' | 'unknown' | 'error';
@@ -224,21 +232,28 @@ export function LinkedInComposerOverlay({ open, onClose, onPost }: LinkedInCompo
     setStatus('posting');
     setStatusMessage(attachments.length > 0 ? 'Uploading media and posting through LinkedIn...' : 'Posting through LinkedIn...');
 
-    const outcome = await onPost(exportedText, attachments);
+    const result = await onPost(exportedText, attachments);
+    // Non-blocking notice: unresolved mentions were posted as plain text, so
+    // the user can check the post (or their retry) rather than trust that
+    // every name became a real mention.
+    const degradedMentions = result.mentionsRequested - result.mentionsApplied;
+    const mentionNotice = degradedMentions > 0
+      ? ` ${result.mentionsApplied} of ${result.mentionsRequested} mentions linked; unmatched names posted as plain text.`
+      : '';
 
-    if (outcome === 'posted') {
+    if (result.outcome === 'posted') {
       setAttachments([]);
       setStatus('posted');
-      setStatusMessage('Posted');
+      setStatusMessage(mentionNotice ? `Posted.${mentionNotice}` : 'Posted');
       return;
     }
 
-    if (outcome === 'unknown') {
+    if (result.outcome === 'unknown') {
       // The Post click went through but LinkedIn never confirmed. Keep the
       // draft and attachments so nothing is lost, and warn before a retry
       // that could double-post.
       setStatus('unknown');
-      setStatusMessage('Post submitted, but LinkedIn did not confirm it went out. Check your LinkedIn feed before posting again.');
+      setStatusMessage(`Post submitted, but LinkedIn did not confirm it went out. Check your LinkedIn feed before posting again.${mentionNotice}`);
       return;
     }
 

@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { LinkedInComposerOverlay, type PostOutcome } from './LinkedInComposerOverlay';
+import { LinkedInComposerOverlay, type PostOutcome, type PostResult } from './LinkedInComposerOverlay';
 import { parseMentionSegments, type MentionSegment } from '../lib/mentions';
 import {
   attachFilesToLinkedInComposer,
@@ -24,6 +24,7 @@ import {
   queryAllDeep,
   setLinkedInComposerSegments,
   setLinkedInComposerText,
+  type ComposerSegmentsResult,
 } from './linkedinComposer';
 import './extension.css';
 
@@ -173,9 +174,15 @@ function closeFormatter() {
   closeNativeComposer();
 }
 
-async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOutcome> {
+async function postThroughLinkedIn(text: string, files: File[]): Promise<PostResult> {
   log('postThroughLinkedIn start, textLength:', text.length, 'files:', files.length);
   isBridgingToNativeComposer = true;
+  const mentions = { requested: 0, applied: 0 };
+  const finish = (outcome: PostOutcome): PostResult => ({
+    outcome,
+    mentionsRequested: mentions.requested,
+    mentionsApplied: mentions.applied,
+  });
 
   // The formatter stays open ("Posting...") and the native composer stays
   // hidden for the whole bridge, so the user never sees LinkedIn's editor.
@@ -204,7 +211,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
     if (!composer) {
       log('FAILED: no composer found');
       dumpDomState('post-no-composer');
-      return 'failed';
+      return finish('failed');
     }
 
     // Switch suppression to focusable mode so we can focus + insert text. The
@@ -217,7 +224,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
 
       if (!attached) {
         log('FAILED: could not attach media');
-        return 'failed';
+        return finish('failed');
       }
 
       // Wait until the upload registers. The redesigned composer attaches
@@ -228,7 +235,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
 
       if (!mediaAttached) {
         log('FAILED: media never attached');
-        return 'failed';
+        return finish('failed');
       }
 
       // Media processing can re-render the editor, so re-acquire it.
@@ -237,10 +244,10 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
 
     if (text.trim()) {
       const segments = parseMentionSegments(text);
-      let wrote = await writeComposerContent(composer, text, segments);
-      log('write composer content result:', wrote);
+      let writeResult = await writeComposerContent(composer, text, segments);
+      log('write composer content result:', writeResult.inserted);
 
-      if (wrote && files.length > 0) {
+      if (writeResult.inserted && files.length > 0) {
         // Late media re-renders can wipe freshly inserted text; verify it
         // stuck and re-insert once if not.
         await wait(800);
@@ -249,14 +256,17 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
         if (!composerContainsContent(current, segments)) {
           log('text wiped by media re-render, re-inserting');
           composer = current;
-          wrote = await writeComposerContent(composer, text, segments);
-          log('write composer content retry result:', wrote);
+          writeResult = await writeComposerContent(composer, text, segments);
+          log('write composer content retry result:', writeResult.inserted);
         }
       }
 
-      if (!wrote) {
+      mentions.requested = writeResult.mentionsRequested;
+      mentions.applied = writeResult.mentionsApplied;
+
+      if (!writeResult.inserted) {
         log('FAILED: could not write text');
-        return 'failed';
+        return finish('failed');
       }
 
       // Never click Post on unverified text: a mid-bridge focus steal or a
@@ -267,7 +277,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
       if (!composerTextCoversSegments(written, segments)) {
         log('FAILED: composer text does not cover the draft, not clicking Post');
         dumpDomState('post-text-mismatch');
-        return 'failed';
+        return finish('failed');
       }
 
       // Attached media suppresses link previews, so only wait when there is
@@ -286,7 +296,7 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
 
     if (!postButton) {
       log('FAILED: native Post button never enabled');
-      return 'failed';
+      return finish('failed');
     }
 
     clickLinkedInControl(postButton);
@@ -307,14 +317,23 @@ async function postThroughLinkedIn(text: string, files: File[]): Promise<PostOut
       log('WARNING: composer still open after Post click, outcome unknown');
       suppressNativeComposer('hidden');
       hideNativeComposer();
-      return 'unknown';
+      return finish('unknown');
+    }
+
+    log('SUCCESS: posted through LinkedIn');
+
+    if (mentions.requested > mentions.applied) {
+      // Some mentions degraded to plain text: keep the formatter open so the
+      // overlay's notice is visible. The share dialog is already gone, so
+      // just restore default suppression; closing the formatter cleans up.
+      suppressNativeComposer('hidden');
+      return finish('posted');
     }
 
     isFormatterOpen = false;
     renderFormatter(true);
     showNativeComposer();
-    log('SUCCESS: posted through LinkedIn');
-    return 'posted';
+    return finish('posted');
   } finally {
     isBridgingToNativeComposer = false;
   }
@@ -378,15 +397,20 @@ async function waitForMediaAttached(): Promise<boolean> {
 
 // Plain text inserts in one shot; text with mention tokens goes through the
 // segment writer, which resolves each token via LinkedIn's mention typeahead.
-// Unresolved mentions degrade to plain "@name" text inside the post.
-async function writeComposerContent(composer: HTMLElement, text: string, segments: MentionSegment[]): Promise<boolean> {
+// Unresolved mentions degrade to plain "@name" text inside the post; the
+// returned counts flow back to the overlay so the user is told about them.
+async function writeComposerContent(
+  composer: HTMLElement,
+  text: string,
+  segments: MentionSegment[],
+): Promise<ComposerSegmentsResult> {
   if (!segments.some((segment) => segment.kind === 'mention')) {
-    return setLinkedInComposerText(composer, text);
+    return { inserted: setLinkedInComposerText(composer, text), mentionsRequested: 0, mentionsApplied: 0 };
   }
 
   const result = await setLinkedInComposerSegments(composer, segments);
   log('mentions resolved:', result.mentionsApplied, 'of', result.mentionsRequested);
-  return result.inserted;
+  return result;
 }
 
 function composerContainsContent(composer: HTMLElement, segments: MentionSegment[]): boolean {
