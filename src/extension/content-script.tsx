@@ -97,7 +97,10 @@ let hideLoopId: number | null = null;
 let suppressMode: 'hidden' | 'focusable' = 'hidden';
 
 function mountFormatter() {
-  if (mountedContainer?.isConnected) {
+  // The DOM check also covers a root owned by another injection of this
+  // script (toolbar re-injection runs in a fresh scope where
+  // mountedContainer is null).
+  if (mountedContainer?.isConnected || document.getElementById(ROOT_ID)) {
     return;
   }
 
@@ -595,22 +598,48 @@ function renderMountError(container: HTMLElement, error: unknown) {
   container.setAttribute(DIAGNOSTIC_ATTRIBUTE, 'mount-error');
 }
 
-scheduleMount();
+const OPEN_EVENT_NAME = 'linkedin-post-formatter:open';
+const MOUNTED_FLAG = '__lipfMounted';
 
-const observer = new MutationObserver(() => {
+type MountFlagWindow = Window & { [MOUNTED_FLAG]?: boolean };
+
+function initialize() {
+  // The manifest injects this script on every LinkedIn page and the toolbar
+  // click re-injects the same file in a fresh scope. Guard against the second
+  // copy: it would create a duplicate root/React tree, a second click
+  // listener and MutationObserver, and both copies would fight over the
+  // single native-composer suppression style, which can break text insertion
+  // mid-post. When already mounted, just ask the live copy to open.
+  const flagWindow = window as MountFlagWindow;
+
+  if (document.getElementById(ROOT_ID) || flagWindow[MOUNTED_FLAG]) {
+    log('already mounted, forwarding open request to the existing instance');
+    document.dispatchEvent(new CustomEvent(OPEN_EVENT_NAME));
+    return;
+  }
+
+  flagWindow[MOUNTED_FLAG] = true;
+
   scheduleMount();
 
-  if (isFormatterOpen) {
-    window.setTimeout(hideNativeComposer, 0);
-  }
-});
-observer.observe(document.documentElement, { childList: true, subtree: true });
-document.addEventListener('click', handleDocumentStartPostEvent, true);
-document.addEventListener('linkedin-post-formatter:open', openFormatter);
+  const observer = new MutationObserver(() => {
+    scheduleMount();
 
-window.addEventListener('beforeunload', () => {
-  observer.disconnect();
-  document.removeEventListener('click', handleDocumentStartPostEvent, true);
-  document.removeEventListener('linkedin-post-formatter:open', openFormatter);
-  unmountFormatter();
-});
+    if (isFormatterOpen) {
+      window.setTimeout(hideNativeComposer, 0);
+    }
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('click', handleDocumentStartPostEvent, true);
+  document.addEventListener(OPEN_EVENT_NAME, openFormatter);
+
+  window.addEventListener('beforeunload', () => {
+    observer.disconnect();
+    document.removeEventListener('click', handleDocumentStartPostEvent, true);
+    document.removeEventListener(OPEN_EVENT_NAME, openFormatter);
+    unmountFormatter();
+    delete flagWindow[MOUNTED_FLAG];
+  });
+}
+
+initialize();
