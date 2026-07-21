@@ -20,7 +20,6 @@ This is not an official app of any platform. Drafts stay in your browser; the ex
 - **Copy or open.** Use **Copy** for platform-ready text, or **Copy & open** to launch that platform's composer pre-filled (X, Bluesky, Threads, Mastodon).
 - **Mention people.** Write `@[Name]` — it shows as `@Scott Hanselman` on LinkedIn (where the extension resolves it into a real, clickable mention) and collapses to a single handle-style token like `@ScottHanselman` on X, Bluesky, Threads, and Mastodon, so their autocomplete fires on the whole name (and can match a handle) instead of splitting it at the space.
 - **Add media & links once.** Use the **Images & links** tray to reuse an image or link across platforms: links fold into each platform's text and count, and an image can be copied to the clipboard to paste into LinkedIn (or downloaded / dragged into any composer).
-- **Optional AI.** Connect your own LLM key (Anthropic Claude, Google Gemini, or any OpenAI-compatible endpoint) to write, adapt, and auto-fit posts — with documents or URLs as reference context. Your key stays in your browser.
 - **Install it as an app.** The web app is a PWA: install it from the **Install app** button in the header (or your browser's install option) to run it in its own window and add it to your home screen or desktop. Once loaded it works **offline** for writing, editing, and managing drafts (AI and link previews still need the network), and prompts you to reload when a new version is published.
 
 ## Features
@@ -29,7 +28,6 @@ This is not an official app of any platform. Drafts stay in your browser; the ex
 - **Fork-on-edit** per platform with one-click re-sync, plus local autosave and saved drafts.
 - **`@[Name]` mentions**, highlighted in the editor and previews — kept spaced for LinkedIn (where the extension resolves them into real, clickable mentions) and collapsed to a single handle-style token elsewhere.
 - **Shared images & links** — add once, reuse everywhere; *Copy image* pastes a picture straight into LinkedIn.
-- **Optional, bring-your-own-key AI** — write, adapt a single platform, auto-fit over-limit posts, and feed in reference sources (files, URLs, or pasted text), with a multiline prompt box and remembered prompt history.
 - **Rich-text editing** — Markdown and Word paste, file import, a searchable emoji picker, lists, and links, with LinkedIn-style Unicode styling where it helps.
 - **Private by default** — drafts, settings, and API keys stay in your browser; nothing leaves it except the AI endpoint you choose to configure.
 - **Installable PWA** — add it to your home screen or desktop and launch it in its own window; the app shell is cached so editing and drafts work offline, attachments are kept on-device, and a reload prompt appears when a new version ships.
