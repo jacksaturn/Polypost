@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun } from 'lucide-react';
 
-import { AiAssist } from './components/AiAssist';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { DraftHistoryPanel } from './components/DraftHistoryPanel';
 import { EditorShell } from './components/EditorShell';
@@ -734,7 +733,7 @@ function App() {
           </div>
           <div className="header-copy">
             <h1 id="app-title">{APP_NAME}</h1>
-            <p className="subtitle">Draft once, format for every platform. Connect an AI assistant to help write your post and tailor it to each platform's length and style.</p>
+            <p className="subtitle">Draft once, format for every platform.</p>
           </div>
           <div className="header-actions">
             <InstallButton />
