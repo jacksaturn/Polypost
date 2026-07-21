@@ -790,19 +790,6 @@ function App() {
           <div className="workspace-panel editor-workspace">
             {storageNotice ? <p className="inline-alert panel-alert" role="status">{storageNotice}</p> : null}
 
-            <AiAssist
-              ready={aiReady}
-              busy={authorBusy}
-              error={authorError}
-              onSubmit={handleAuthor}
-              onOpenSettings={() => setShowSettings(true)}
-              hasDraft={Boolean(docToPlainText(workspace.master).trim())}
-              stylePrompt={llmConfig.stylePrompt}
-              sources={sources}
-              onAddSource={handleAddSource}
-              onUpdateSource={handleUpdateSource}
-              onRemoveSource={handleRemoveSource}
-            />
             <EditorShell
               key={editorVersion}
               initialContent={workspace.master}
