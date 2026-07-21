@@ -1,3 +1,7 @@
+This is a modified version of Polypost for use by folks with accounts at High Bias ( https://highbias.org/ ). All AI features have been stripped out of the code to the best of our abilities.
+
+-------
+
 # Polypost
 
 Draft a post once and format it for every platform at the same time. The main editor uses TipTap for word-processor-style editing, and a live preview rail shows your post on **LinkedIn, X, Bluesky, Threads, Mastodon, Facebook, and Instagram**, each with its own character limit, counting rule, and formatting applied.
